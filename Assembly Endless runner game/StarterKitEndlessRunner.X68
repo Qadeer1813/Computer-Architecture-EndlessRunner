@@ -56,7 +56,10 @@ POINTS      EQU         01          ; Points added
 *-----------------------------------------------------------
 SPACEBAR    EQU         $20         ; Spacebar ASCII Keycode
 ESCAPE      EQU         $1B         ; Escape ASCII Keycode
-
+LEFTARROW   EQU         $25         ; Left key ASCII Keycode
+UPARROW     EQU         $26         ; Up key ASCII Keycode   
+RIGHTARROW  EQU         $27         ; Right key ASCII Keycode
+DOWNARROW   EQU         $28         ; Down Key ASCII Keycode     
 *-----------------------------------------------------------
 * Subroutine    : Initialise
 * Description   : Initialise game data into memory such as 
@@ -682,6 +685,7 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
     END    START        ; last line of source
+
 
 
 
