@@ -31,6 +31,10 @@ PLYR_H_INIT EQU         08          ; Players initial Height
 
 PLYR_DFLT_V EQU         00          ; Default Player Velocity
 PLYR_JUMP_V EQU        -20          ; Player Jump Velocity
+;-----------------------------------------------------------
+PLYR_UP_V   EQU         -05          ; Player UP Velocity
+PLYR_DOWN_V EQU         02          ; Player DOWN Velocity
+;-----------------------------------------------------------
 PLYR_DFLT_G EQU         01          ; Player Default Gravity
 
 GND_TRUE    EQU         01          ; Player on Ground True
@@ -56,10 +60,12 @@ POINTS      EQU         01          ; Points added
 *-----------------------------------------------------------
 SPACEBAR    EQU         $20         ; Spacebar ASCII Keycode
 ESCAPE      EQU         $1B         ; Escape ASCII Keycode
+;------------------------------------------------------------
 LEFTARROW   EQU         $25         ; Left key ASCII Keycode
 UPARROW     EQU         $26         ; Up key ASCII Keycode   
 RIGHTARROW  EQU         $27         ; Right key ASCII Keycode
-DOWNARROW   EQU         $28         ; Down Key ASCII Keycode     
+DOWNARROW   EQU         $28         ; Down Key ASCII Keycode 
+;------------------------------------------------------------    
 *-----------------------------------------------------------
 * Subroutine    : Initialise
 * Description   : Initialise game data into memory such as 
@@ -69,6 +75,10 @@ INITIALISE:
     ; Initialise Sounds
     BSR     RUN_LOAD                ; Load Run Sound into Memory
     BSR     JUMP_LOAD               ; Load Jump Sound into Memory
+    ;------------------------------------------------------------
+    ;BSR     UP_LOAD                 ; Load Jump Sound into Memory
+    ;BSR     DOWN_LOAD               ; Load Jump Sound into Memory
+    ;-------------------------------------------------------------
     BSR     OPPS_LOAD               ; Load Opps (Collision) Sound into Memory
 
     ; Screen Size
@@ -137,29 +147,30 @@ INITIALISE:
 GAME:
     BSR     PLAY_RUN                ; Play Run Wav
 GAMELOOP:
-    MOVEQ   #8,d0                * get time in 1/100 ths seconds
+    MOVEQ   #8,D0                   ; Get time in 1/100 seconds
     TRAP    #15
 
-    MOVE.l    d1,-(sp)            * push time on the stack
+    MOVE.L  D1,-(SP)                ; Push time on the stack
     ; Main Gameloop
     BSR     INPUT                   ; Check Keyboard Input
     BSR     UPDATE                  ; Update positions and points
+    ;BSR     UPMOVEMENT
     BSR     IS_PLAYER_ON_GND        ; Check if player is on ground
     BSR     CHECK_COLLISIONS        ; Check for Collisions
     BSR     DRAW                    ; Draw the Scene
     ;BRA     GAMELOOP               ; Loop back to GameLoop
     
-    MOVE.l  (sp)+,d7
+    MOVE.L  (SP)+,D7
 wait:
-    MOVEQ       #8,d0               ; Get time in 1/100 ths seconds
-    TRAP        #15
+    MOVEQ   #8,D0                   ; Get time in 1/100 ths seconds
+    TRAP    #15
 
-    SUB.l        d7,d1              ; Subtract previous time from current time
-    CMP.B        #2,d1              ; Compare with 9/100ths adding the wait allowed the character and enemy to slow down to the same pace 
+    SUB.L   D7,D1                   ; Subtract previous time from current time
+    CMP.B   #2,D1                   ; Compare with 9/100ths adding the wait allowed the character and enemy to slow down to the same pace 
                                     ;but i also changed the speed of the enenemy  so the enemy is slightly faster than character
-    BMI.S        wait               ; Loop if time not up yet
+    BMI.S   WAIT                    ; Loop if time not up yet
 
-    BRA        GAMELOOP             ; Loop back to Game loop
+    BRA     GAMELOOP                ; Loop back to Game loop
     
 
 *-----------------------------------------------------------
@@ -190,6 +201,12 @@ PROCESS_INPUT:
     BEQ     EXIT                    ; Exit if Escape
     CMP.L   #SPACEBAR,  CURRENT_KEY ; Is Current Key Spacebar
     BEQ     JUMP                    ; Jump
+    ;--------------------------------------------------
+    CMP.L   #UPARROW,  CURRENT_KEY ; Is Current Key UP
+    BEQ     UP                     ; Up
+    CMP.L   #DOWNARROW,CURRENT_KEY ; Is Current Key Down
+    BEQ     DOWN                   ; Down
+    ;--------------------------------------------------
     BRA     IDLE                    ; Or Idle
     RTS                             ; Return to subroutine
 
@@ -206,7 +223,7 @@ UPDATE:
     MOVE.L  D1,         PLYR_VELOCITY ; Update Player Velocity
     ADD.L   PLAYER_Y,   D1          ; Add Velocity to Player
     MOVE.L  D1,         PLAYER_Y    ; Update Players Y Position 
-
+    
     ; Move the Enemy
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     CLR.L   D1                      ; Clear the contents of D0
@@ -216,7 +233,40 @@ UPDATE:
     BRA     MOVE_ENEMY              ; Move the Enemy
 
     RTS                             ; Return to subroutine  
+*-----------------------------------------------------------
+* Subroutine    : Update
+* Description   : Main update loop update Player and Enemies
+* By: Qadeer Hussain
+*-----------------------------------------------------------
+UP:
+    CLR.L   D1 
+    ;MOVE.L PLYR_UP_V,D1
+    
+    MOVE.L D1, PLAYER_Y     ; Load the current y position of the player into D1
+    SUB #5, D1             ; Subtract 1 from the y position to move the player up
+    MOVE.L D1, PLAYER_Y
+        
+    RTS
+*-----------------------------------------------------------
+* Subroutine    : Update
+* Description   : Main update loop update Player and Enemies
+* By: Qadeer Hussain
+*-----------------------------------------------------------
+DOWN:
+    CLR.L   D1 
+    MOVE.L PLAYER_Y, D1    ; Load the current y position of the player into D1
+    ADD #5, D1             ; Subtract 1 from the y position to move the player up
+    MOVE.L D1, PLAYER_Y
+        
+    ;RTS
+    
+    
+    ;MOVE.W player_y, D1    ; Load the current y position of the player into D1
+    ;ADD #1, D1             ; Add 1 to the y position to move the player down
+    ;MOVE.W D1, player_y    ; Store the updated y position of the player
 
+    ;RTS
+    
 *-----------------------------------------------------------
 * Subroutine    : Move Enemy
 * Description   : Move Enemy Right to Left
@@ -452,7 +502,36 @@ PERFORM_JUMP:
     RTS                             ; Return to subroutine
 JUMP_DONE:
     RTS                             ; Return to subroutine
-
+*-----------------------------------------------------------
+* Subroutine    : Up
+* Description   : Move Up
+* By: Qadeer Hussain
+*-----------------------------------------------------------
+;UP:
+    ;CMP.L   #GND_TRUE,PLYR_ON_GND   ; Player is on the Ground ?
+    ;BEQ     PERFORM_UP              ; Do Jump
+    ;BRA     UP_DONE                 
+;PERFORM_UP:
+    ;BSR     PLAY_UP                 ; Play jump sound
+    ;MOVE.L  #PLYR_UP_V,PLAYER_Y ; Set the players velocity to true
+    ;RTS                             ; Return to subroutine
+;UP_DONE:
+    ;RTS                             ; Return to subroutine
+*-----------------------------------------------------------
+* Subroutine    : Down
+* Description   : Move Down
+* By: Qadeer Hussain
+*-----------------------------------------------------------
+*DOWN:
+    ;CMP.L   #GND_TRUE,PLYR_ON_GND   ; Player is on the Ground ?
+    ;BEQ     PERFORM_DOWN            ; Do Jump
+    ;BRA     DOWN_DONE                 
+;PERFORM_DOWN:
+    ;BSR     PLAY_DOWN               ; Play jump sound
+    ;MOVE.L  #PLYR_DOWN_V,PLAYER_Y ; Set the players velocity to true
+    ;RTS                             ; Return to subroutine
+;DOWN_DONE:
+    ;RTS                             ; Return to subroutine
 *-----------------------------------------------------------
 * Subroutine    : Idle
 * Description   : Perform a Idle
@@ -625,6 +704,10 @@ EXIT:
 SCORE_MSG       DC.B    'Score : ', 0       ; Score Message
 KEYCODE_MSG     DC.B    'KeyCode : ', 0     ; Keycode Message
 JUMP_MSG        DC.B    'Jump....', 0       ; Jump Message
+;---------------------------------------------------------
+UP_MSG          DC.B    'Up....', 0       ; Up Message
+DOWN_MSG        DC.B    'Down....', 0       ; Down Message
+;-----------------------------------------------------------
 
 IDLE_MSG        DC.B    'Idle....', 0       ; Idle Message
 UPDATE_MSG      DC.B    'Update....', 0     ; Update Message
@@ -685,6 +768,8 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
     END    START        ; last line of source
+
+
 
 
 
