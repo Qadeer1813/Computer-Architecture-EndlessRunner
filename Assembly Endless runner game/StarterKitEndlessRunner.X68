@@ -32,8 +32,8 @@ PLYR_H_INIT EQU         08          ; Players initial Height
 PLYR_DFLT_V EQU         00          ; Default Player Velocity
 PLYR_JUMP_V EQU        -20          ; Player Jump Velocity
 ;-----------------------------------------------------------
-PLYR_UP_V   EQU         -05          ; Player UP Velocity
-PLYR_DOWN_V EQU         02          ; Player DOWN Velocity
+;PLYR_UP_V   EQU         -05          ; Player UP Velocity
+;PLYR_DOWN_V EQU         02          ; Player DOWN Velocity
 ;-----------------------------------------------------------
 PLYR_DFLT_G EQU         01          ; Player Default Gravity
 
@@ -75,10 +75,6 @@ INITIALISE:
     ; Initialise Sounds
     BSR     RUN_LOAD                ; Load Run Sound into Memory
     BSR     JUMP_LOAD               ; Load Jump Sound into Memory
-    ;------------------------------------------------------------
-    ;BSR     UP_LOAD                 ; Load Jump Sound into Memory
-    ;BSR     DOWN_LOAD               ; Load Jump Sound into Memory
-    ;-------------------------------------------------------------
     BSR     OPPS_LOAD               ; Load Opps (Collision) Sound into Memory
 
     ; Screen Size
@@ -91,9 +87,7 @@ INITIALISE:
 
     ; Place the Player at the center of the screen
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
-    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
-    DIVU    #02,        D1          ; divide by 2 for center on X Axis
-    MOVE.L  D1,         PLAYER_X    ; Players X Position
+    MOVE.L  #0,         PLAYER_X    ; Players X set to 0 Position
 
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
@@ -102,21 +96,11 @@ INITIALISE:
 
     ; Initialise Player Score
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
-    MOVE.L  #00,        D1          ; Init Score
-    MOVE.L  D1,         PLAYER_SCORE
-
-    ; Initialise Player Velocity
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
-    MOVE.B  #PLYR_DFLT_V,D1         ; Init Player Velocity
-    MOVE.L  D1,         PLYR_VELOCITY
-
-    ; Initialise Player Gravity
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
-    MOVE.L  #PLYR_DFLT_G,D1         ; Init Player Gravity
-    MOVE.L  D1,         PLYR_GRAVITY
+    MOVE.L  #0,         D1          ; Init Score
+    MOVE.L  D1,        PLAYER_SCORE
 
     ; Initialize Player on Ground
-    MOVE.L  #GND_TRUE,  PLYR_ON_GND ; Init Player on Ground
+    ;MOVE.L  #GND_TRUE,  PLYR_ON_GND ; Init Player on Ground
 
     ; Initial Position for Enemy
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
@@ -151,11 +135,11 @@ GAMELOOP:
     TRAP    #15
 
     MOVE.L  D1,-(SP)                ; Push time on the stack
+    
     ; Main Gameloop
     BSR     INPUT                   ; Check Keyboard Input
     BSR     UPDATE                  ; Update positions and points
-    ;BSR     UPMOVEMENT
-    BSR     IS_PLAYER_ON_GND        ; Check if player is on ground
+    ;BSR     IS_PLAYER_ON_GND        ; Check if player is on ground
     BSR     CHECK_COLLISIONS        ; Check for Collisions
     BSR     DRAW                    ; Draw the Scene
     ;BRA     GAMELOOP               ; Loop back to GameLoop
@@ -199,13 +183,11 @@ PROCESS_INPUT:
     MOVE.L  D2,         CURRENT_KEY ; Put Current Key in Memory
     CMP.L   #ESCAPE,    CURRENT_KEY ; Is Current Key Escape
     BEQ     EXIT                    ; Exit if Escape
-    CMP.L   #SPACEBAR,  CURRENT_KEY ; Is Current Key Spacebar
-    BEQ     JUMP                    ; Jump
     ;--------------------------------------------------
-    CMP.L   #UPARROW,  CURRENT_KEY ; Is Current Key UP
-    BEQ     UP                     ; Up
-    CMP.L   #DOWNARROW,CURRENT_KEY ; Is Current Key Down
-    BEQ     DOWN                   ; Down
+    CMP.L   #UPARROW,  CURRENT_KEY  ; Is Current Key UP
+    BEQ     UP                      ; Up
+    CMP.L   #DOWNARROW,CURRENT_KEY  ; Is Current Key Down
+    BEQ     DOWN                    ; Down
     ;--------------------------------------------------
     BRA     IDLE                    ; Or Idle
     RTS                             ; Return to subroutine
@@ -215,15 +197,7 @@ PROCESS_INPUT:
 * Description   : Main update loop update Player and Enemies
 *-----------------------------------------------------------
 UPDATE:
-    ; Update the Players Positon based on Velocity and Gravity
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
-    MOVE.L  PLYR_VELOCITY, D1       ; Fetch Player Velocity
-    MOVE.L  PLYR_GRAVITY, D2        ; Fetch Player Gravity
-    ADD.L   D2,         D1          ; Add Gravity to Velocity
-    MOVE.L  D1,         PLYR_VELOCITY ; Update Player Velocity
-    ADD.L   PLAYER_Y,   D1          ; Add Velocity to Player
-    MOVE.L  D1,         PLAYER_Y    ; Update Players Y Position 
-    
+
     ; Move the Enemy
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     CLR.L   D1                      ; Clear the contents of D0
@@ -234,39 +208,21 @@ UPDATE:
 
     RTS                             ; Return to subroutine  
 *-----------------------------------------------------------
-* Subroutine    : Update
-* Description   : Main update loop update Player and Enemies
+* Subroutine    : UP
+* Description   : Move the enemy up 2 frames
 * By: Qadeer Hussain
 *-----------------------------------------------------------
 UP:
-    CLR.L   D1 
-    ;MOVE.L PLYR_UP_V,D1
-    
-    MOVE.L D1, PLAYER_Y     ; Load the current y position of the player into D1
-    SUB #5, D1             ; Subtract 1 from the y position to move the player up
-    MOVE.L D1, PLAYER_Y
-        
+    SUB.L   #2, PLAYER_Y
     RTS
 *-----------------------------------------------------------
-* Subroutine    : Update
-* Description   : Main update loop update Player and Enemies
+* Subroutine    : DOWN
+* Description   : Move the enemy down 2 frames
 * By: Qadeer Hussain
 *-----------------------------------------------------------
 DOWN:
-    CLR.L   D1 
-    MOVE.L PLAYER_Y, D1    ; Load the current y position of the player into D1
-    ADD #5, D1             ; Subtract 1 from the y position to move the player up
-    MOVE.L D1, PLAYER_Y
-        
-    ;RTS
-    
-    
-    ;MOVE.W player_y, D1    ; Load the current y position of the player into D1
-    ;ADD #1, D1             ; Add 1 to the y position to move the player down
-    ;MOVE.W D1, player_y    ; Store the updated y position of the player
-
-    ;RTS
-    
+    ADD.L   #2, PLAYER_Y 
+    RTS    
 *-----------------------------------------------------------
 * Subroutine    : Move Enemy
 * Description   : Move Enemy Right to Left
@@ -358,55 +314,7 @@ DRAW_PLYR_DATA:
     MOVE.B  #03,        D0          ; Display number at D1.L
     MOVE.L  PLAYER_Y,   D1          ; Move X to D1.L
     TRAP    #15                     ; Trap (Perform action) 
-
-    ; Player Velocity Message
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0203,     D1          ; Col 02, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     V_MSG,      A1          ; Velocity Message
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
     
-    ; Player Velocity
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0503,     D1          ; Col 05, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  PLYR_VELOCITY,D1        ; Move X to D1.L
-    TRAP    #15                     ; Trap (Perform action)
-    
-    ; Player Gravity Message
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$1003,     D1          ; Col 10, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     G_MSG,      A1          ; G Message
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-    
-    ; Player Gravity
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$1203,     D1          ; Col 12, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  PLYR_GRAVITY,D1         ; Move Gravity to D1.L
-    TRAP    #15                     ; Trap (Perform action)
-
-    ; Player On Ground Message
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0204,     D1          ; Col 10, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     GND_MSG,    A1          ; On Ground Message
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-    
-    ; Player On Ground
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0604,     D1          ; Col 06, Row 04
-    TRAP    #15                     ; Trap (Perform action)
-    MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  PLYR_ON_GND,D1          ; Move Play on Ground ? to D1.L
-    TRAP    #15                     ; Trap (Perform action)
-
     ; Show Keys Pressed
     MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
     MOVE.W  #$2001,     D1          ; Col 20, Row 1
@@ -421,30 +329,6 @@ DRAW_PLYR_DATA:
     TRAP    #15                     ; Trap (Perform action)    
     MOVE.L  CURRENT_KEY,D1          ; Move Key Pressed to D1
     MOVE.B  #03,        D0          ; Display the contents of D1
-    TRAP    #15                     ; Trap (Perform action)
-
-    ; Show if Update is Running
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0205,     D1          ; Col 02, Row 05
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     UPDATE_MSG, A1          ; Update
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-
-    ; Show if Draw is Running
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0206,     D1          ; Col 02, Row 06
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     DRAW_MSG,   A1          ; Draw
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-
-    ; Show if Idle is Running
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0207,     D1          ; Col 02, Row 07
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     IDLE_MSG,   A1          ; Move Idle Message to A1
-    MOVE    #13,        D0          ; No Line feed
     TRAP    #15                     ; Trap (Perform action)
 
     RTS  
@@ -488,6 +372,7 @@ SET_ON_GROUND:
 SET_OFF_GROUND:
     MOVE.L  #GND_FALSE, PLYR_ON_GND ; Player if off Ground
     RTS                             ; Return to subroutine
+
 *-----------------------------------------------------------
 * Subroutine    : Jump
 * Description   : Perform a Jump
@@ -502,40 +387,6 @@ PERFORM_JUMP:
     RTS                             ; Return to subroutine
 JUMP_DONE:
     RTS                             ; Return to subroutine
-*-----------------------------------------------------------
-* Subroutine    : Up
-* Description   : Move Up
-* By: Qadeer Hussain
-*-----------------------------------------------------------
-;UP:
-    ;CMP.L   #GND_TRUE,PLYR_ON_GND   ; Player is on the Ground ?
-    ;BEQ     PERFORM_UP              ; Do Jump
-    ;BRA     UP_DONE                 
-;PERFORM_UP:
-    ;BSR     PLAY_UP                 ; Play jump sound
-    ;MOVE.L  #PLYR_UP_V,PLAYER_Y ; Set the players velocity to true
-    ;RTS                             ; Return to subroutine
-;UP_DONE:
-    ;RTS                             ; Return to subroutine
-*-----------------------------------------------------------
-* Subroutine    : Down
-* Description   : Move Down
-* By: Qadeer Hussain
-*-----------------------------------------------------------
-*DOWN:
-    ;CMP.L   #GND_TRUE,PLYR_ON_GND   ; Player is on the Ground ?
-    ;BEQ     PERFORM_DOWN            ; Do Jump
-    ;BRA     DOWN_DONE                 
-;PERFORM_DOWN:
-    ;BSR     PLAY_DOWN               ; Play jump sound
-    ;MOVE.L  #PLYR_DOWN_V,PLAYER_Y ; Set the players velocity to true
-    ;RTS                             ; Return to subroutine
-;DOWN_DONE:
-    ;RTS                             ; Return to subroutine
-*-----------------------------------------------------------
-* Subroutine    : Idle
-* Description   : Perform a Idle
-*----------------------------------------------------------- 
 IDLE:
     BSR     PLAY_RUN                ; Play Run Wav
     RTS                             ; Return to subroutine
@@ -708,16 +559,8 @@ JUMP_MSG        DC.B    'Jump....', 0       ; Jump Message
 UP_MSG          DC.B    'Up....', 0       ; Up Message
 DOWN_MSG        DC.B    'Down....', 0       ; Down Message
 ;-----------------------------------------------------------
-
-IDLE_MSG        DC.B    'Idle....', 0       ; Idle Message
-UPDATE_MSG      DC.B    'Update....', 0     ; Update Message
-DRAW_MSG        DC.B    'Draw....', 0       ; Draw Message
-
 X_MSG           DC.B    'X:', 0             ; X Position Message
 Y_MSG           DC.B    'Y:', 0             ; Y Position Message
-V_MSG           DC.B    'V:', 0             ; Velocity Position Message
-G_MSG           DC.B    'G:', 0             ; Gravity Position Message
-GND_MSG         DC.B    'GND:', 0           ; On Ground Position Message
 
 EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
 
@@ -768,6 +611,9 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
     END    START        ; last line of source
+
+
+
 
 
 
