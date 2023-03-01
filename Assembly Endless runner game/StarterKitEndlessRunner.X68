@@ -52,8 +52,10 @@ ENMY_H_INIT EQU         14          ; Enemy initial Height
 * Description   : Points, Time
 *-----------------------------------------------------------
 POINTS      EQU         01          ; Points added
-TIME        EQU         00         ; Health start
+TIME        EQU         00          ; Time
 STACKSIZE   EQU         $100   
+HEALTH      EQU         $2000          ; Health Sub
+;HEALTHSTART EQU         100
 *-----------------------------------------------------------
 * Section       : Keyboard Keys
 * Description   : Spacebar and Escape or two functioning keys
@@ -99,6 +101,10 @@ INITIALISE:
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     MOVE.L  #0,         D1          ; Init Score
     MOVE.L  D1,         PLAYER_SCORE
+    
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.L  #100,       D1          ; Init Score
+    MOVE.L  D1,         HEALTH_VALUE
 
 ;------------------------------------------------------------------------------
     ; Initialise Tim
@@ -214,6 +220,14 @@ UPDATE:
     BRA     MOVE_ENEMY              ; Move the Enemy
 
     RTS                             ; Return to subroutine  
+
+*-----------------------------------------------------------
+* Subroutine    : Time Update
+* Description   : Update Time
+* By: Qadeer Hussain
+*-----------------------------------------------------------
+TIME_UPDATE:
+    ; Update the time
 *-----------------------------------------------------------
 * Subroutine    : UP
 * Description   : Move the enemy up 2 frames
@@ -329,7 +343,7 @@ DRAW_PLYR_DATA:
     MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
     MOVE.W  #$0203,     D1          ; Col 02, Row 03
     TRAP    #15                     ; Trap (Perform action)
-    LEA     TIME_MSG, A1          ; Health Message
+    LEA     TIME_MSG,   A1          ; Health Message
     MOVE    #13,        D0          ; No Line feed
     TRAP    #15                     ; Trap (Perform action)
     
@@ -338,7 +352,23 @@ DRAW_PLYR_DATA:
     MOVE.W  #$0903,     D1          ; Col 09, Row 03
     TRAP    #15                     ; Trap (Perform action)
     MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  TIME_SURV,D1         ; Move Score to D1.L
+    MOVE.L  TIME_SURV,  D1          ; Move Score to D1.L
+    TRAP    #15                     ; Trap (Perform action)
+
+    ; Time Message
+    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+    MOVE.W  #$0204,     D1          ; Col 02, Row 04
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     HEALTH_MSG,   A1          ; Health Message
+    MOVE    #13,        D0          ; No Line feed
+    TRAP    #15                     ; Trap (Perform action)
+    
+    ; Time Value
+    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+    MOVE.W  #$0904,     D1          ; Col 09, Row 04
+    TRAP    #15                     ; Trap (Perform action)
+    MOVE.B  #03,        D0          ; Display number at D1.L
+    MOVE.L  HEALTH_VALUE,  D1          ; Move Score to D1.L
     TRAP    #15                     ; Trap (Perform action)
     
     ; Player X Message
@@ -588,15 +618,40 @@ COLLISION_CHECK_DONE:               ; No Collision Update points
     MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
     RTS                             ; Return to subroutine
 ;-------------------------------------------------------------------
-TIME_COLLISION_CHECK_DONE:        ; No Collision Update points
-    MOVE.L #STACKSIZE,A7 ; initialize stack pointer
-    MOVE.L #TIME_SURV,D1      ; load message address
+* TIME_COLLISION_CHECK_DONE:        ; No Collision Update points
+*     MOVE.L #STACKSIZE,A7 ; initialize stack pointer
+*     MOVE.L #TIME_SURV,D1      ; load message address
     
-    RTS                  ; Return to subroutine
+*     RTS                  ; Return to subroutine
+
+*HEALTH_COLLISION_CHECK_DONE:        ; No Collision Update points
+*    ;BSR     PLAY_OPPS
+*    SUB.L   #20, HEALTH_VALUE              ; Move points upgrade to D1
+*    ADD.L   HEALTH_VALUE,D1         ; Add to current player score
+*    MOVE.L  D1, HEALTH_VALUE        ; Update player score in memory
+*    RTS                             ; Return to subroutine
 ;-------------------------------------------------------------------
 COLLISION:
     BSR     PLAY_OPPS               ; Play Opps Wav
-    MOVE.L  #00, PLAYER_SCORE       ; Reset Player Score
+    CLR.L   PLAYER_SCORE            ; Reset Player Score
+    SUB.L   #20, HEALTH_VALUE
+    IF.L    (HEALTH_VALUE) <EQ> #0 THEN
+    
+            MOVE.B	#TC_CURSR_P,D0          ; Set Cursor Position
+	        MOVE.W	#$FF00,     D1          ; Clear contents
+	        TRAP    #15                     ; Trap (Perform action)
+	        
+	        BSR     DRAW_PLYR_DATA          ; Draw Draw Score, HUD, Player X and Y
+            BSR     DRAW_PLAYER             ; Draw Player
+            BSR     DRAW_ENEMY              ; Draw Enemy
+
+
+            MOVE.B  #94,        D0
+            TRAP    #15
+            
+
+            BSR EXIT
+    ENDI
     RTS                             ; Return to subroutine
 
 *-----------------------------------------------------------
@@ -629,7 +684,8 @@ DOWN_MSG        DC.B    'Down....', 0       ; Down Message
 ;-----------------------------------------------------------
 X_MSG           DC.B    'X:', 0             ; X Position Message
 Y_MSG           DC.B    'Y:', 0             ; Y Position Message
-TIME_MSG        DC.B    'Time : ', 0      ; Health Message
+TIME_MSG        DC.B    'Time : ', 0        ; Time Message
+HEALTH_MSG      DC.B    'Health : ',0       ; Health message
 
 
 EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
@@ -661,7 +717,8 @@ CURRENT_KEY     DS.L    01  ; Reserve Space for Current Key Pressed
 PLAYER_X        DS.L    01  ; Reserve Space for Player X Position
 PLAYER_Y        DS.L    01  ; Reserve Space for Player Y Position
 PLAYER_SCORE    DS.L    01  ; Reserve Space for Player Score
-TIME_SURV       DS.L    01  ; Reserve Space for Player Score
+TIME_SURV       DS.L    01  ; Reserve Space for Time Survival
+HEALTH_VALUE    DS.L    01  ; Reserve Space for Health Value
 
 PLYR_VELOCITY   DS.L    01  ; Reserve Space for Player Velocity
 PLYR_GRAVITY    DS.L    01  ; Reserve Space for Player Gravity
@@ -682,6 +739,9 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
     END    START        ; last line of source
+
+
+
 
 
 
