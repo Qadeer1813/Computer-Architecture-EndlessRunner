@@ -26,8 +26,8 @@ TC_EXIT     EQU         09          ; Exit Trapcode
 * Description   : Size of Player and Enemy and properties
 * of these characters e.g Starting Positions and Sizes
 *-----------------------------------------------------------
-PLYR_W_INIT EQU         08          ; Players initial Width
-PLYR_H_INIT EQU         08          ; Players initial Height
+PLYR_W_INIT EQU         14          ; Players initial Width
+PLYR_H_INIT EQU         14          ; Players initial Height
 
 PLYR_DFLT_V EQU         00          ; Default Player Velocity
 PLYR_JUMP_V EQU        -20          ; Player Jump Velocity
@@ -44,15 +44,16 @@ RUN_INDEX   EQU         00          ; Player Run Sound Index
 JMP_INDEX   EQU         01          ; Player Jump Sound Index  
 OPPS_INDEX  EQU         02          ; Player Opps Sound Index
 
-ENMY_W_INIT EQU         08          ; Enemy initial Width
-ENMY_H_INIT EQU         08          ; Enemy initial Height
+ENMY_W_INIT EQU         14          ; Enemy initial Width
+ENMY_H_INIT EQU         14          ; Enemy initial Height
 
 *-----------------------------------------------------------
 * Section       : Game Stats
-* Description   : Points
+* Description   : Points, Time
 *-----------------------------------------------------------
 POINTS      EQU         01          ; Points added
-
+TIME        EQU         00         ; Health start
+STACKSIZE   EQU         $100   
 *-----------------------------------------------------------
 * Section       : Keyboard Keys
 * Description   : Spacebar and Escape or two functioning keys
@@ -60,10 +61,8 @@ POINTS      EQU         01          ; Points added
 *-----------------------------------------------------------
 SPACEBAR    EQU         $20         ; Spacebar ASCII Keycode
 ESCAPE      EQU         $1B         ; Escape ASCII Keycode
-;------------------------------------------------------------
-LEFTARROW   EQU         $25         ; Left key ASCII Keycode
-UPARROW     EQU         $26         ; Up key ASCII Keycode   
-RIGHTARROW  EQU         $27         ; Right key ASCII Keycode
+;------------------------------------------------------------  
+UPARROW     EQU         $26         ; Right key ASCII Keycode
 DOWNARROW   EQU         $28         ; Down Key ASCII Keycode 
 ;------------------------------------------------------------    
 *-----------------------------------------------------------
@@ -87,7 +86,9 @@ INITIALISE:
 
     ; Place the Player at the center of the screen
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
-    MOVE.L  #0,         PLAYER_X    ; Players X set to 0 Position
+    ;MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    ;DIVU    #02,        D1          ; divide by 2 for center on X Axis
+    MOVE.L  #00,         PLAYER_X    ; Players X set to 0 Position
 
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
@@ -97,10 +98,17 @@ INITIALISE:
     ; Initialise Player Score
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     MOVE.L  #0,         D1          ; Init Score
-    MOVE.L  D1,        PLAYER_SCORE
+    MOVE.L  D1,         PLAYER_SCORE
+
+;------------------------------------------------------------------------------
+    ; Initialise Tim
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.L  #0,         D1          ; Init Score
+    MOVE.L  D1,         TIME_SURV
+;-----------------------------------------------------------------------------
 
     ; Initialize Player on Ground
-    ;MOVE.L  #GND_TRUE,  PLYR_ON_GND ; Init Player on Ground
+    MOVE.L  #GND_TRUE,  PLYR_ON_GND ; Init Player on Ground
 
     ; Initial Position for Enemy
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
@@ -131,7 +139,7 @@ INITIALISE:
 GAME:
     BSR     PLAY_RUN                ; Play Run Wav
 GAMELOOP:
-    MOVEQ   #8,D0                   ; Get time in 1/100 seconds
+    MOVEQ   #08,D0                   ; Get time in 1/100 seconds
     TRAP    #15
 
     MOVE.L  D1,-(SP)                ; Push time on the stack
@@ -142,15 +150,15 @@ GAMELOOP:
     ;BSR     IS_PLAYER_ON_GND        ; Check if player is on ground
     BSR     CHECK_COLLISIONS        ; Check for Collisions
     BSR     DRAW                    ; Draw the Scene
+    BSR     Random_Number
     ;BRA     GAMELOOP               ; Loop back to GameLoop
     
     MOVE.L  (SP)+,D7
-wait:
+WAIT:
     MOVEQ   #8,D0                   ; Get time in 1/100 ths seconds
     TRAP    #15
-
     SUB.L   D7,D1                   ; Subtract previous time from current time
-    CMP.B   #2,D1                   ; Compare with 9/100ths adding the wait allowed the character and enemy to slow down to the same pace 
+    CMP.B   #02,D1                   ; Compare with 9/100ths adding the wait allowed the character and enemy to slow down to the same pace 
                                     ;but i also changed the speed of the enenemy  so the enemy is slightly faster than character
     BMI.S   WAIT                    ; Loop if time not up yet
 
@@ -189,7 +197,7 @@ PROCESS_INPUT:
     CMP.L   #DOWNARROW,CURRENT_KEY  ; Is Current Key Down
     BEQ     DOWN                    ; Down
     ;--------------------------------------------------
-    BRA     IDLE                    ; Or Idle
+    ;BRA     IDLE                    ; Or Idle
     RTS                             ; Return to subroutine
 
 *-----------------------------------------------------------
@@ -197,7 +205,6 @@ PROCESS_INPUT:
 * Description   : Main update loop update Player and Enemies
 *-----------------------------------------------------------
 UPDATE:
-
     ; Move the Enemy
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     CLR.L   D1                      ; Clear the contents of D0
@@ -230,7 +237,42 @@ DOWN:
 MOVE_ENEMY:
     SUB.L   #08,        ENEMY_X     ; Move enemy by X Value
     RTS
+*-----------------------------------------------------------
+* Subroutine    : Random Number Generator
+* Description   : Generate random number for the enemey to spawn
+* By: Qadeer Hussain
+*-----------------------------------------------------------
+RANDOM_NUMBER:
+    MOVE.B #8, D0 #Loads D1 with Time in 100's of Seconds since midnight (6 Bits)
+    TRAP #15  #Place time in D1
+    AND.L #$0000FFFF, D1 # AND 6 Bits to prevent any overflow
+    DIVU #10, D1 #Divide by 10, 100, 1000, 10000 depending on Number range required
+    SWAP D1 #SWAP Higher Order Word and Lower Order Word in D1
+    ADDQ.W #1, D1 #Add 1 to D1.W so number is at least 1
+    MOVE.W D1, D2 #Extract the number from D1.W
+    CLR.L D1 # Clear contents of D1
+    MOVE.W D2, D1 #Move the generated number to D1
+    RTS    
 
+*    MOVE.L #0,D0 ; Load the address of the enemy list into D1
+*    MOVE.L #ENEMY_LIST,D1 ; Load the address of the enemy list into D1
+*
+*spawn_enemies:
+*    ; Generate a random number to determine if an enemy should be spawned
+*    MOVE #0,D2 ; Set D2 to 0
+*    MOVE #255,D3 ; Set D3 to 255
+*    JSR Random_Number ; Call a subroutine to generate a random number between 0 and 255
+*    CMP #128,D0 ; Compare the result to 128
+*    BCS no_spawn ; If the result is greater than or equal to 128, skip spawning an enemy
+*    
+*    ;Spawn an enemy
+*    MOVE.L D1,(A0)+ ; Add the address of the enemy list to A0 and store it in the current node
+*    ADDQ.L #1,D0 ; Increment the enemy counter
+*    CMP.L #MAX_ENEMIES,D0 ; Compare the counter to the maximum number of enemies
+*    BNE spawn_enemies ; If the counter is less than the maximum, loop to spawn more enemies
+*    
+*no_spawn:
+*    RTS
 *-----------------------------------------------------------
 * Subroutine    : Reset Enemy
 * Description   : Reset Enemy if to passes 0 to Right of Screen
@@ -281,6 +323,22 @@ DRAW_PLYR_DATA:
     TRAP    #15                     ; Trap (Perform action)
     MOVE.B  #03,        D0          ; Display number at D1.L
     MOVE.L  PLAYER_SCORE,D1         ; Move Score to D1.L
+    TRAP    #15                     ; Trap (Perform action)
+    
+    ; Time Message
+    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+    MOVE.W  #$0203,     D1          ; Col 02, Row 03
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     TIME_MSG, A1          ; Health Message
+    MOVE    #13,        D0          ; No Line feed
+    TRAP    #15                     ; Trap (Perform action)
+    
+    ; Time Value
+    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+    MOVE.W  #$0903,     D1          ; Col 09, Row 03
+    TRAP    #15                     ; Trap (Perform action)
+    MOVE.B  #03,        D0          ; Display number at D1.L
+    MOVE.L  TIME_SURV,D1         ; Move Score to D1.L
     TRAP    #15                     ; Trap (Perform action)
     
     ; Player X Message
@@ -348,8 +406,7 @@ IS_PLAYER_ON_GND:
     BGE     SET_ON_GROUND           ; The Player is on the Ground Plane
     BLT     SET_OFF_GROUND          ; The Player is off the Ground
     RTS                             ; Return to subroutine
-
-
+    
 *-----------------------------------------------------------
 * Subroutine    : On Ground
 * Description   : Set the Player On Ground
@@ -377,19 +434,19 @@ SET_OFF_GROUND:
 * Subroutine    : Jump
 * Description   : Perform a Jump
 *-----------------------------------------------------------
-JUMP:
-    CMP.L   #GND_TRUE,PLYR_ON_GND   ; Player is on the Ground ?
-    BEQ     PERFORM_JUMP            ; Do Jump
-    BRA     JUMP_DONE               ;
-PERFORM_JUMP:
-    BSR     PLAY_JUMP               ; Play jump sound
-    MOVE.L  #PLYR_JUMP_V,PLYR_VELOCITY ; Set the players velocity to true
-    RTS                             ; Return to subroutine
-JUMP_DONE:
-    RTS                             ; Return to subroutine
-IDLE:
-    BSR     PLAY_RUN                ; Play Run Wav
-    RTS                             ; Return to subroutine
+*JUMP:
+*    CMP.L   #GND_TRUE,PLYR_ON_GND   ; Player is on the Ground ?
+*    BEQ     PERFORM_JUMP            ; Do Jump
+*    BRA     JUMP_DONE               ;
+*PERFORM_JUMP:
+*    BSR     PLAY_JUMP               ; Play jump sound
+*    MOVE.L  #PLYR_JUMP_V,PLYR_VELOCITY ; Set the players velocity to true
+*    RTS                             ; Return to subroutine
+*JUMP_DONE:
+*    RTS                             ; Return to subroutine
+*IDLE:
+*    BSR     PLAY_RUN                ; Play Run Wav
+*    RTS                             ; Return to subroutine
 
 *-----------------------------------------------------------
 * Subroutines   : Sound Load and Play
@@ -494,6 +551,7 @@ DRAW_ENEMY:
 CHECK_COLLISIONS:
     CLR.L   D1                      ; Clear D1
     CLR.L   D2                      ; Clear D2
+    
 PLAYER_X_LTE_TO_ENEMY_X_PLUS_W:
     MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
     MOVE.L  ENEMY_X,    D2          ; Move Enemy X to D2
@@ -501,12 +559,14 @@ PLAYER_X_LTE_TO_ENEMY_X_PLUS_W:
     CMP.L   D1,         D2          ; Do the Overlap ?
     BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X  ; Less than or Equal ?
     BRA     COLLISION_CHECK_DONE    ; If not no collision
+    
 PLAYER_X_PLUS_W_LTE_TO_ENEMY_X:     ; Check player is not  
     ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
     MOVE.L  ENEMY_X,    D2          ; Move Enemy X to D2
     CMP.L   D1,         D2          ; Do they OverLap ?
     BGE     PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H  ; Less than or Equal
-    BRA     COLLISION_CHECK_DONE    ; If not no collision   
+    BRA     COLLISION_CHECK_DONE    ; If not no collision
+   
 PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H:     
     MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
     MOVE.L  ENEMY_Y,    D2          ; Move Enemy Y to D2
@@ -514,18 +574,26 @@ PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H:
     CMP.L   D1,         D2          ; Do they Overlap ?
     BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y  ; Less than or Equal
     BRA     COLLISION_CHECK_DONE    ; If not no collision 
+    
 PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y:     ; Less than or Equal ?
     ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
     MOVE.L  ENEMY_Y,    D2          ; Move Enemy Height to D2  
     CMP.L   D1,         D2          ; Do they OverLap ?
     BGE     COLLISION               ; Collision !
     BRA     COLLISION_CHECK_DONE    ; If not no collision
+    
 COLLISION_CHECK_DONE:               ; No Collision Update points
     ADD.L   #POINTS,    D1          ; Move points upgrade to D1
     ADD.L   PLAYER_SCORE,D1         ; Add to current player score
     MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
     RTS                             ; Return to subroutine
-
+;-------------------------------------------------------------------
+TIME_COLLISION_CHECK_DONE:        ; No Collision Update points
+    MOVE.L #STACKSIZE,A7 ; initialize stack pointer
+    MOVE.L #TIME_SURV,D1      ; load message address
+    
+    RTS                  ; Return to subroutine
+;-------------------------------------------------------------------
 COLLISION:
     BSR     PLAY_OPPS               ; Play Opps Wav
     MOVE.L  #00, PLAYER_SCORE       ; Reset Player Score
@@ -561,6 +629,8 @@ DOWN_MSG        DC.B    'Down....', 0       ; Down Message
 ;-----------------------------------------------------------
 X_MSG           DC.B    'X:', 0             ; X Position Message
 Y_MSG           DC.B    'Y:', 0             ; Y Position Message
+TIME_MSG        DC.B    'Time : ', 0      ; Health Message
+
 
 EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
 
@@ -591,6 +661,7 @@ CURRENT_KEY     DS.L    01  ; Reserve Space for Current Key Pressed
 PLAYER_X        DS.L    01  ; Reserve Space for Player X Position
 PLAYER_Y        DS.L    01  ; Reserve Space for Player Y Position
 PLAYER_SCORE    DS.L    01  ; Reserve Space for Player Score
+TIME_SURV       DS.L    01  ; Reserve Space for Player Score
 
 PLYR_VELOCITY   DS.L    01  ; Reserve Space for Player Velocity
 PLYR_GRAVITY    DS.L    01  ; Reserve Space for Player Gravity
@@ -611,6 +682,12 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
     END    START        ; last line of source
+
+
+
+
+
+
 
 
 
