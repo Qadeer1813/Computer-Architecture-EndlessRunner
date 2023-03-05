@@ -18,7 +18,7 @@ TC_S_SIZE   EQU         00          ; Places 0 in D1.L to retrieve Screen width 
 TC_KEYCODE  EQU         19          ; Check for pressed keys
 TC_DBL_BUF  EQU         92          ; Double Buffer Screen Trap Code
 TC_CURSR_P  EQU         11          ; Trap code cursor position
-
+    
 TC_EXIT     EQU         09          ; Exit Trapcode
 
 *-----------------------------------------------------------
@@ -26,8 +26,8 @@ TC_EXIT     EQU         09          ; Exit Trapcode
 * Description   : Size of Player and Enemy and properties
 * of these characters e.g Starting Positions and Sizes
 *-----------------------------------------------------------
-PLYR_W_INIT EQU         14          ; Players initial Width
-PLYR_H_INIT EQU         14          ; Players initial Height
+PLYR_W_INIT EQU         20          ; Players initial Width
+PLYR_H_INIT EQU         20          ; Players initial Height
 
 PLYR_DFLT_V EQU         00          ; Default Player Velocity
 PLYR_JUMP_V EQU        -20          ; Player Jump Velocity
@@ -44,10 +44,9 @@ RUN_INDEX   EQU         00          ; Player Run Sound Index
 JMP_INDEX   EQU         01          ; Player Jump Sound Index  
 OPPS_INDEX  EQU         02          ; Player Opps Sound Index
 
-ENMY_W_INIT EQU         14          ; Enemy initial Width
-ENMY_H_INIT EQU         14          ; Enemy initial Height
+ENMY_W_INIT EQU         20          ; Enemy initial Width
+ENMY_H_INIT EQU         20          ; Enemy initial Height
 
-;ENEMY_LIST  EQU         
 *-----------------------------------------------------------
 * Section       : Game Stats
 * Description   : Points, Health
@@ -108,26 +107,97 @@ INITIALISE:
     ; Initialize Player on Ground
     MOVE.L  #GND_TRUE,  PLYR_ON_GND ; Init Player on Ground
 
-    ; Initial Position for Enemy
+    ; Initial Position for Enemy 1   
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    MOVE.L  D1,         ENEMY_X_1   ; Enemy X Position
+
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+    MOVE.W  #85,        D1          ; divide by 2 for center on Y Axis
+    MOVE.L  D1,         ENEMY_Y_1   ; Enemy Y Position
+
+    ; Initial Position for Enemy 2   
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    MOVE.L  D1,         ENEMY_X_2   ; Enemy X Position
+
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+    MOVE.W  #120,        D1          ; divide by 2 for center on Y Axis
+    MOVE.L  D1,         ENEMY_Y_2   ; Enemy Y Position
+
+    ; Initial Position for Enemy 3   
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    MOVE.L  D1,         ENEMY_X_3   ; Enemy X Position
+
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+    MOVE.W  #155,        D1          ; divide by 2 for center on Y Axis
+    MOVE.L  D1,         ENEMY_Y_3   ; Enemy Y Position
+    
+    ; Initial Position for Enemy 4   
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    MOVE.L  D1,         ENEMY_X_4   ; Enemy X Position
+
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+    MOVE.W  #190,        D1          ; divide by 2 for center on Y Axis
+    MOVE.L  D1,         ENEMY_Y_4   ; Enemy Y Position
+
+    ; Initial Position for Enemy Center(5)
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
     MOVE.L  D1,         ENEMY_X     ; Enemy X Position
-
+    
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
     DIVU    #02,        D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,         ENEMY_Y     ; Enemy Y Position
     
+    ; Initial Position for Enemy 6   
 *    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
 *    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
-*    MOVE.L  D1,         ENEMY_X     ; Enemy X Position
+*    MOVE.L  D1,         ENEMY_X_6   ; Enemy X Position
 *
 *    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
 *    MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
-*    DIVU    RANDOM_NUMBER,        D1          ; divide by 2 for center on Y Axis
-*    MOVE.L  D1,         ENEMY_Y     ; Enemy Y Position
+*    MOVE.W  #290,        D1          ; divide by 2 for center on Y Axis
+*    MOVE.L  D1,         ENEMY_Y_6   ; Enemy Y Position
+    
+    ; Initial Position for Enemy 7   
+*    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+*    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+*    MOVE.L  D1,         ENEMY_X_7   ; Enemy X Position
+*
+*    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+*    MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+*    MOVE.W  #255,        D1          ; divide by 2 for center on Y Axis
+*    MOVE.L  D1,         ENEMY_Y_7   ; Enemy Y Position
 
+    ; Initial Position for Enemy 8   
+*    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+*    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+*    MOVE.L  D1,         ENEMY_X_8   ; Enemy X Position
+*
+*    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+*    MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+*    MOVE.W  #255,        D1          ; divide by 2 for center on Y Axis
+*    MOVE.L  D1,         ENEMY_Y_8   ; Enemy Y Position
 
+    ; Initial Position for Enemy 9   
+*    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+*    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+*    MOVE.L  D1,         ENEMY_X_9   ; Enemy X Position
+*
+*    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+*    MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+*    MOVE.W  #255,        D1          ; divide by 2 for center on Y Axis
+*    MOVE.L  D1,         ENEMY_Y_9   ; Enemy Y Position
+
+        
     ; Enable the screen back buffer(see easy 68k help)
 	MOVE.B  #TC_DBL_BUF,D0          ; 92 Enables Double Buffer
     MOVE.B  #17,        D1          ; Combine Tasks
@@ -154,19 +224,26 @@ GAMELOOP:
     
     ; Main Gameloop
     BSR     INPUT                   ; Check Keyboard Input
-    BSR     UPDATE                  ; Update positions and points
-    ;BSR     IS_PLAYER_ON_GND        ; Check if player is on ground
-    BSR     CHECK_COLLISIONS        ; Check for Collisions
+    BSR     UPDATE_1
+    BSR     UPDATE_2
+    BSR     UPDATE_3
+    BSR     UPDATE_4
+    BSR     UPDATE                  ; Update positions and points(5)
+*    BSR     UPDATE_6
+    BSR     CHECK_COLLISIONS_1
+    BSR     CHECK_COLLISIONS_2
+    BSR     CHECK_COLLISIONS_3
+    BSR     CHECK_COLLISIONS_4
+    BSR     CHECK_COLLISIONS        ; Check for Collisions(5)
+*    BSR     CHECK_COLLISIONS_6
     BSR     DRAW                    ; Draw the Scene
-    BSR     Random_Number
-    ;BRA     GAMELOOP               ; Loop back to GameLoop
     
     MOVE.L  (SP)+,D7
 WAIT:
     MOVEQ   #8,D0                   ; Get time in 1/100 ths seconds
     TRAP    #15
     SUB.L   D7,D1                   ; Subtract previous time from current time
-    CMP.B   #01,D1                   ; Compare with 9/100ths adding the wait allowed the character and enemy to slow down to the same pace 
+    CMP.B   #02,D1                  ; Compare with 9/100ths adding the wait allowed the character and enemy to slow down to the same pace 
                                     ;but i also changed the speed of the enenemy  so the enemy is slightly faster than character
     BMI.S   WAIT                    ; Loop if time not up yet
 
@@ -220,8 +297,57 @@ UPDATE:
     CMP.L   #00,        D1
     BLE     RESET_ENEMY_POSITION    ; Reset Enemy if off Screen
     BRA     MOVE_ENEMY              ; Move the Enemy
+    RTS                             ; Return to subroutine
+  
+UPDATE_1:
+    ; Move the Enemy
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    CLR.L   D1                      ; Clear the contents of D0
+    MOVE.L  ENEMY_X_1,  D1          ; Move the Enemy X Position to D0
+    CMP.L   #00,        D1
+    BLE     RESET_ENEMY_POSITION_1  ; Reset Enemy if off Screen
+    BRA     MOVE_ENEMY_1
+    RTS        
 
-    RTS                             ; Return to subroutine  
+UPDATE_2:
+    ; Move the Enemy
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    CLR.L   D1                      ; Clear the contents of D0
+    MOVE.L  ENEMY_X_2,  D1          ; Move the Enemy X Position to D0
+    CMP.L   #00,        D1
+    BLE     RESET_ENEMY_POSITION_2  ; Reset Enemy if off Screen
+    BRA     MOVE_ENEMY_2
+    RTS   
+    
+UPDATE_3:
+    ; Move the Enemy
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    CLR.L   D1                      ; Clear the contents of D0
+    MOVE.L  ENEMY_X_3,  D1          ; Move the Enemy X Position to D0
+    CMP.L   #00,        D1
+    BLE     RESET_ENEMY_POSITION_3  ; Reset Enemy if off Screen
+    BRA     MOVE_ENEMY_3
+    RTS   
+
+UPDATE_4:
+    ; Move the Enemy
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    CLR.L   D1                      ; Clear the contents of D0
+    MOVE.L  ENEMY_X_4,  D1          ; Move the Enemy X Position to D0
+    CMP.L   #00,        D1
+    BLE     RESET_ENEMY_POSITION_4  ; Reset Enemy if off Screen
+    BRA     MOVE_ENEMY_4
+    RTS   
+    
+*UPDATE_6:
+*    ; Move the Enemy
+*    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+*    CLR.L   D1                      ; Clear the contents of D0
+*    MOVE.L  ENEMY_X_6,  D1          ; Move the Enemy X Position to D0
+*    CMP.L   #00,        D1
+*    BLE     RESET_ENEMY_POSITION_6  ; Reset Enemy if off Screen
+*    BRA     MOVE_ENEMY_6
+*    RTS  
 *-----------------------------------------------------------
 * Subroutine    : UP
 * Description   : Move the enemy up 2 frames
@@ -229,14 +355,12 @@ UPDATE:
 *-----------------------------------------------------------
 UP:  
     SUB.L   #2, PLAYER_Y
-   
-    
     ; Check if player is out of bounds
     CMP.L   #85, PLAYER_Y     ; check if player is above top of screen
-    BLT     OUT_OF_BOUNDS
+    BLT     OUT_OF_BOUNDS_UP
     RTS
     
-OUT_OF_BOUNDS:
+OUT_OF_BOUNDS_UP:
     ; Player is out of bounds, move back into screen
     MOVE.L  #2, D2   ; set D2 to the amount to move
     ADD.L   D2, PLAYER_Y  ; move player down
@@ -249,7 +373,7 @@ OUT_OF_BOUNDS:
 DOWN:
     ADD.L   #2, PLAYER_Y 
     ; Check if player is out of bounds
-    CMP.L   #460, PLAYER_Y  ; check if player is below bottom of screen
+    CMP.L   #375, PLAYER_Y  ; check if player is below bottom of screen
     BGE     OUT_OF_BOUNDS_DOWN
     RTS    
 
@@ -263,45 +387,32 @@ OUT_OF_BOUNDS_DOWN:
 * Subroutine    : Move Enemy
 * Description   : Move Enemy Right to Left
 *-----------------------------------------------------------
+MOVE_ENEMY_1:
+     SUB.L   #05,   ENEMY_X_1   ; Move enemy by X Value
+     RTS
+     
 MOVE_ENEMY:
-    SUB.L   #08,        ENEMY_X     ; Move enemy by X Value
+    SUB.L   #05,   ENEMY_X     ; Move enemy(5) by X Value
     RTS
-*-----------------------------------------------------------
-* Subroutine    : Random Number Generator
-* Description   : Generate random number for the enemey to spawn
-* By: Qadeer Hussain
-*-----------------------------------------------------------
-RANDOM_NUMBER:
-    MOVE.B #8, D0 #Loads D1 with Time in 100's of Seconds since midnight (6 Bits)
-    TRAP #15  #Place time in D1
-    AND.L #$0000FFFF, D1 # AND 6 Bits to prevent any overflow
-    DIVU #10, D1 #Divide by 10, 100, 1000, 10000 depending on Number range required
-    SWAP D1 #SWAP Higher Order Word and Lower Order Word in D1
-    ADDQ.W #1, D1 #Add 1 to D1.W so number is at least 1
-    MOVE.W D1, D2 #Extract the number from D1.W
-    CLR.L D1 # Clear contents of D1
-    MOVE.W D2, D1 #Move the generated number to D1
-    RTS    
 
-*    MOVE.L #0,D0 ; Load the address of the enemy list into D1
-*    MOVE.L #ENEMY_LIST,D1 ; Load the address of the enemy list into D1
-*
-*spawn_enemies:
-*    ; Generate a random number to determine if an enemy should be spawned
-*    MOVE #0,D2 ; Set D2 to 0
-*    MOVE #255,D3 ; Set D3 to 255
-*    JSR Random_Number ; Call a subroutine to generate a random number between 0 and 255
-*    CMP #128,D0 ; Compare the result to 128
-*    BCS no_spawn ; If the result is greater than or equal to 128, skip spawning an enemy
-*    
-*    ;Spawn an enemy
-*    MOVE.L D1,(A0)+ ; Add the address of the enemy list to A0 and store it in the current node
-*    ADDQ.L #1,D0 ; Increment the enemy counter
-*    CMP.L #MAX_ENEMIES,D0 ; Compare the counter to the maximum number of enemies
-*    BNE spawn_enemies ; If the counter is less than the maximum, loop to spawn more enemies
-*    
-*no_spawn:
-*    RTS
+MOVE_ENEMY_3:
+     SUB.L   #05,   ENEMY_X_3   ; Move enemy by X Value
+     RTS
+     
+MOVE_ENEMY_2:
+     SUB.L   #04,   ENEMY_X_2   ; Move enemy by X Value
+     RTS
+     
+MOVE_ENEMY_4:
+     SUB.L   #04,   ENEMY_X_4   ; Move enemy by X Value
+     RTS
+     
+*MOVE_ENEMY_6:
+*     SUB.L   #04,   ENEMY_X_6   ; Move enemy by X Value
+*     RTS
+     
+
+    
 *-----------------------------------------------------------
 * Subroutine    : Reset Enemy
 * Description   : Reset Enemy if to passes 0 to Right of Screen
@@ -311,7 +422,35 @@ RESET_ENEMY_POSITION:
     MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
     MOVE.L  D1,         ENEMY_X     ; Enemy X Position
     RTS
-
+    
+RESET_ENEMY_POSITION_1:
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    MOVE.L  D1,         ENEMY_X_1     ; Enemy X Position
+    RTS
+RESET_ENEMY_POSITION_2:
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    MOVE.L  D1,         ENEMY_X_2     ; Enemy X Position
+    RTS
+    
+RESET_ENEMY_POSITION_3:
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    MOVE.L  D1,         ENEMY_X_3     ; Enemy X Position
+    RTS
+    
+RESET_ENEMY_POSITION_4:
+    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    MOVE.L  D1,         ENEMY_X_4     ; Enemy X Position
+    RTS
+    
+*RESET_ENEMY_POSITION_6:
+*    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+*    MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+*    MOVE.L  D1,         ENEMY_X_6     ; Enemy X Position
+*    RTS
 *-----------------------------------------------------------
 * Subroutine    : Draw
 * Description   : Draw Screen
@@ -328,7 +467,12 @@ DRAW:
 
     BSR     DRAW_PLYR_DATA          ; Draw Draw Score, HUD, Player X and Y
     BSR     DRAW_PLAYER             ; Draw Player
-    BSR     DRAW_ENEMY              ; Draw Enemy
+    BSR     DRAW_ENEMY_1            ; Draw Enemey No.1
+    BSR     DRAW_ENEMY_2
+    BSR     DRAW_ENEMY_3
+    BSR     DRAW_ENEMY_4
+    BSR     DRAW_ENEMY              ; Draw Enemy No.5
+*    BSR     DRAW_ENEMY_6
     RTS                             ; Return to subroutine
 
 *-----------------------------------------------------------
@@ -547,8 +691,84 @@ DRAW_PLAYER:
 *-----------------------------------------------------------
 * Subroutine    : Draw Enemy
 * Description   : Draw Enemy Square
-*-----------------------------------------------------------
-DRAW_ENEMY:
+*-----------------------------------------------------------    
+DRAW_ENEMY_1:
+    ; Set Pixel Colors
+    MOVE.L  #RED,       D1          ; Set Background color
+    MOVE.B  #80,        D0          ; Task for Background Color
+    TRAP    #15                     ; Trap (Perform action)
+
+    ; Set X, Y, Width and Height
+    MOVE.L  ENEMY_X_1,    D1          ; X
+    MOVE.L  ENEMY_Y_1,    D2          ; Y
+    MOVE.L  ENEMY_X_1,    D3
+    ADD.L   #ENMY_W_INIT,   D3      ; Width
+    MOVE.L  ENEMY_Y_1,    D4 
+    ADD.L   #ENMY_H_INIT,   D4      ; Height
+    
+    ; Draw Enemy    
+    MOVE.B  #87,        D0          ; Draw Enemy
+    TRAP    #15                     ; Trap (Perform action)
+    RTS                             ; Return to subroutine
+
+DRAW_ENEMY_2:
+    ; Set Pixel Colors
+    MOVE.L  #RED,       D1          ; Set Background color
+    MOVE.B  #80,        D0          ; Task for Background Color
+    TRAP    #15                     ; Trap (Perform action)
+
+    ; Set X, Y, Width and Height
+    MOVE.L  ENEMY_X_2,    D1          ; X
+    MOVE.L  ENEMY_Y_2,    D2          ; Y
+    MOVE.L  ENEMY_X_2,    D3
+    ADD.L   #ENMY_W_INIT,   D3      ; Width
+    MOVE.L  ENEMY_Y_2,    D4 
+    ADD.L   #ENMY_H_INIT,   D4      ; Height
+    
+    ; Draw Enemy    
+    MOVE.B  #87,        D0          ; Draw Enemy
+    TRAP    #15                     ; Trap (Perform action)
+    RTS                             ; Return to subroutine
+
+DRAW_ENEMY_3:
+    ; Set Pixel Colors
+    MOVE.L  #RED,       D1          ; Set Background color
+    MOVE.B  #80,        D0          ; Task for Background Color
+    TRAP    #15                     ; Trap (Perform action)
+
+    ; Set X, Y, Width and Height
+    MOVE.L  ENEMY_X_3,    D1          ; X
+    MOVE.L  ENEMY_Y_3,    D2          ; Y
+    MOVE.L  ENEMY_X_3,    D3
+    ADD.L   #ENMY_W_INIT,   D3      ; Width
+    MOVE.L  ENEMY_Y_3,    D4 
+    ADD.L   #ENMY_H_INIT,   D4      ; Height
+    
+    ; Draw Enemy    
+    MOVE.B  #87,        D0          ; Draw Enemy
+    TRAP    #15                     ; Trap (Perform action)
+    RTS                             ; Return to subroutine
+
+DRAW_ENEMY_4:
+    ; Set Pixel Colors
+    MOVE.L  #RED,       D1          ; Set Background color
+    MOVE.B  #80,        D0          ; Task for Background Color
+    TRAP    #15                     ; Trap (Perform action)
+
+    ; Set X, Y, Width and Height
+    MOVE.L  ENEMY_X_4,    D1          ; X
+    MOVE.L  ENEMY_Y_4,    D2          ; Y
+    MOVE.L  ENEMY_X_4,    D3
+    ADD.L   #ENMY_W_INIT,   D3      ; Width
+    MOVE.L  ENEMY_Y_4,    D4 
+    ADD.L   #ENMY_H_INIT,   D4      ; Height
+    
+    ; Draw Enemy    
+    MOVE.B  #87,        D0          ; Draw Enemy
+    TRAP    #15                     ; Trap (Perform action)
+    RTS                             ; Return to subroutine 
+    
+DRAW_ENEMY:                         ; Draw Enemy No.5
     ; Set Pixel Colors
     MOVE.L  #RED,       D1          ; Set Background color
     MOVE.B  #80,        D0          ; Task for Background Color
@@ -566,7 +786,26 @@ DRAW_ENEMY:
     MOVE.B  #87,        D0          ; Draw Enemy
     TRAP    #15                     ; Trap (Perform action)
     RTS                             ; Return to subroutine
-*-----------------------------------------------------------
+
+*DRAW_ENEMY_6:
+*    ; Set Pixel Colors
+*    MOVE.L  #RED,       D1          ; Set Background color
+*    MOVE.B  #80,        D0          ; Task for Background Color
+*    TRAP    #15                     ; Trap (Perform action)
+*
+*    ; Set X, Y, Width and Height
+*    MOVE.L  ENEMY_X_6,    D1          ; X
+*    MOVE.L  ENEMY_Y_6,    D2          ; Y
+*    MOVE.L  ENEMY_X_6,    D3
+*    ADD.L   #ENMY_W_INIT,   D3      ; Width
+*    MOVE.L  ENEMY_Y_6,    D4 
+*    ADD.L   #ENMY_H_INIT,   D4      ; Height
+*    
+*    ; Draw Enemy    
+*    MOVE.B  #87,        D0          ; Draw Enemy
+*    TRAP    #15                     ; Trap (Perform action)
+*    RTS                             ; Return to subroutine               
+;----------------------------------------------------------
 * Subroutine    : Collision Check
 * Description   : Axis-Aligned Bounding Box Collision Detection
 * Algorithm checks for overlap on the 4 sides of the Player and 
@@ -576,6 +815,177 @@ DRAW_ENEMY:
 * PLAYER_Y <= ENEMY_Y + ENEMY_H &&
 * PLAYER_H + PLAYER_Y >= ENEMY_Y
 *-----------------------------------------------------------
+CHECK_COLLISIONS_1:
+    CLR.L   D1                      ; Clear D1
+    CLR.L   D2                      ; Clear D2
+
+PLAYER_X_LTE_TO_ENEMY_X_1_PLUS_W:
+    MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+    MOVE.L  ENEMY_X_1,    D2          ; Move Enemy X to D2
+    ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+    CMP.L   D1,         D2          ; Do the Overlap ?
+    BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_1  ; Less than or Equal ?
+    BRA     COLLISION_CHECK_DONE_1    ; If not no collision
+    
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_1:     ; Check player is not  
+    ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+    MOVE.L  ENEMY_X_1,    D2          ; Move Enemy X to D2
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     PLAYER_Y_LTE_TO_ENEMY_Y_1_PLUS_H  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE_1    ; If not no collision
+   
+PLAYER_Y_LTE_TO_ENEMY_Y_1_PLUS_H:     
+    MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+    MOVE.L  ENEMY_Y_1,    D2          ; Move Enemy Y to D2
+    ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+    CMP.L   D1,         D2          ; Do they Overlap ?
+    BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_1  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE_1    ; If not no collision 
+    
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_1:     ; Less than or Equal ?
+    MOVE.L  PLAYER_Y,   D1
+    ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+    MOVE.L  ENEMY_Y_1,    D2          ; Move Enemy Height to D2  
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     COLLISION              ; Collision !
+    BRA     COLLISION_CHECK_DONE_1    ; If not no collision
+    
+COLLISION_CHECK_DONE_1:               ; No Collision Update points
+    ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+    ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+    MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+    RTS                             ; Return to subroutine
+
+*--------------------------------------------------------------------------------- 
+
+CHECK_COLLISIONS_2:
+    CLR.L   D1                      ; Clear D1
+    CLR.L   D2                      ; Clear D2
+
+PLAYER_X_LTE_TO_ENEMY_X_2_PLUS_W:
+    MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+    MOVE.L  ENEMY_X_2,    D2          ; Move Enemy X to D2
+    ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+    CMP.L   D1,         D2          ; Do the Overlap ?
+    BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_2  ; Less than or Equal ?
+    BRA     COLLISION_CHECK_DONE_2    ; If not no collision
+    
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_2:     ; Check player is not  
+    ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+    MOVE.L  ENEMY_X_2,    D2          ; Move Enemy X to D2
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     PLAYER_Y_LTE_TO_ENEMY_Y_2_PLUS_H  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE_2    ; If not no collision
+   
+PLAYER_Y_LTE_TO_ENEMY_Y_2_PLUS_H:     
+    MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+    MOVE.L  ENEMY_Y_2,    D2          ; Move Enemy Y to D2
+    ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+    CMP.L   D1,         D2          ; Do they Overlap ?
+    BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_2  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE_2    ; If not no collision 
+    
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_2:     ; Less than or Equal ?
+    MOVE.L  PLAYER_Y,   D1
+    ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+    MOVE.L  ENEMY_Y_2,    D2          ; Move Enemy Height to D2  
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     COLLISION              ; Collision !
+    BRA     COLLISION_CHECK_DONE_2    ; If not no collision
+    
+COLLISION_CHECK_DONE_2:               ; No Collision Update points
+    ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+    ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+    MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+    RTS                             ; Return to subroutine
+
+*--------------------------------------------------------------------------------- 
+
+CHECK_COLLISIONS_3:
+    CLR.L   D1                      ; Clear D1
+    CLR.L   D2                      ; Clear D2
+
+PLAYER_X_LTE_TO_ENEMY_X_3_PLUS_W:
+    MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+    MOVE.L  ENEMY_X_3,    D2          ; Move Enemy X to D2
+    ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+    CMP.L   D1,         D2          ; Do the Overlap ?
+    BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_3  ; Less than or Equal ?
+    BRA     COLLISION_CHECK_DONE_3    ; If not no collision
+    
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_3:     ; Check player is not  
+    ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+    MOVE.L  ENEMY_X_3,    D2          ; Move Enemy X to D2
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     PLAYER_Y_LTE_TO_ENEMY_Y_3_PLUS_H  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE_3    ; If not no collision
+   
+PLAYER_Y_LTE_TO_ENEMY_Y_3_PLUS_H:     
+    MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+    MOVE.L  ENEMY_Y_3,    D2          ; Move Enemy Y to D2
+    ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+    CMP.L   D1,         D2          ; Do they Overlap ?
+    BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_3  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE_3    ; If not no collision 
+    
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_3:     ; Less than or Equal ?
+    MOVE.L  PLAYER_Y,   D1
+    ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+    MOVE.L  ENEMY_Y_3,    D2          ; Move Enemy Height to D2  
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     COLLISION              ; Collision !
+    BRA     COLLISION_CHECK_DONE_3    ; If not no collision
+    
+COLLISION_CHECK_DONE_3:               ; No Collision Update points
+    ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+    ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+    MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+    RTS                             ; Return to subroutine
+
+*---------------------------------------------------------------------------------
+
+CHECK_COLLISIONS_4:
+    CLR.L   D1                      ; Clear D1
+    CLR.L   D2                      ; Clear D2
+
+PLAYER_X_LTE_TO_ENEMY_X_4_PLUS_W:
+    MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+    MOVE.L  ENEMY_X_4,    D2          ; Move Enemy X to D2
+    ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+    CMP.L   D1,         D2          ; Do the Overlap ?
+    BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_4  ; Less than or Equal ?
+    BRA     COLLISION_CHECK_DONE_4    ; If not no collision
+    
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_4:     ; Check player is not  
+    ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+    MOVE.L  ENEMY_X_4,    D2          ; Move Enemy X to D2
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     PLAYER_Y_LTE_TO_ENEMY_Y_4_PLUS_H  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE_4    ; If not no collision
+   
+PLAYER_Y_LTE_TO_ENEMY_Y_4_PLUS_H:     
+    MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+    MOVE.L  ENEMY_Y_4,    D2          ; Move Enemy Y to D2
+    ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+    CMP.L   D1,         D2          ; Do they Overlap ?
+    BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_4  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE_4    ; If not no collision 
+    
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_4:     ; Less than or Equal ?
+    MOVE.L  PLAYER_Y,   D1
+    ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+    MOVE.L  ENEMY_Y_4,    D2          ; Move Enemy Height to D2  
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     COLLISION              ; Collision !
+    BRA     COLLISION_CHECK_DONE_4    ; If not no collision
+    
+COLLISION_CHECK_DONE_4:               ; No Collision Update points
+    ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+    ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+    MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+    RTS                             ; Return to subroutine
+
+*---------------------------------------------------------------------------------
 CHECK_COLLISIONS:
     CLR.L   D1                      ; Clear D1
     CLR.L   D2                      ; Clear D2
@@ -604,21 +1014,65 @@ PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H:
     BRA     COLLISION_CHECK_DONE    ; If not no collision 
     
 PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y:     ; Less than or Equal ?
+    MOVE.L  PLAYER_Y,   D1
     ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
     MOVE.L  ENEMY_Y,    D2          ; Move Enemy Height to D2  
     CMP.L   D1,         D2          ; Do they OverLap ?
     BGE     COLLISION               ; Collision !
     BRA     COLLISION_CHECK_DONE    ; If not no collision
-    
+
 COLLISION_CHECK_DONE:               ; No Collision Update points
     ADD.L   #POINTS,    D1          ; Move points upgrade to D1
     ADD.L   PLAYER_SCORE,D1         ; Add to current player score
     MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
     RTS                             ; Return to subroutine
-    
+*----------------------------------------------------------------------------------
+
+*CHECK_COLLISIONS_6:
+*    CLR.L   D1                      ; Clear D1
+*    CLR.L   D2                      ; Clear D2
+*
+*PLAYER_X_LTE_TO_ENEMY_X_6_PLUS_W:
+*    MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+*    MOVE.L  ENEMY_X_6,    D2          ; Move Enemy X to D2
+*    ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+*    CMP.L   D1,         D2          ; Do the Overlap ?
+*    BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_6  ; Less than or Equal ?
+*    BRA     COLLISION_CHECK_DONE_6    ; If not no collision
+*    
+*PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_6:     ; Check player is not  
+*    ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+*    MOVE.L  ENEMY_X_6,    D2          ; Move Enemy X to D2
+*    CMP.L   D1,         D2          ; Do they OverLap ?
+*    BGE     PLAYER_Y_LTE_TO_ENEMY_Y_6_PLUS_H  ; Less than or Equal
+*    BRA     COLLISION_CHECK_DONE_6    ; If not no collision
+*   
+*PLAYER_Y_LTE_TO_ENEMY_Y_6_PLUS_H:     
+*    MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+*    MOVE.L  ENEMY_Y_6,    D2          ; Move Enemy Y to D2
+*    ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+*    CMP.L   D1,         D2          ; Do they Overlap ?
+*    BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_6  ; Less than or Equal
+*    BRA     COLLISION_CHECK_DONE_6    ; If not no collision 
+*    
+*PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_6:     ; Less than or Equal ?
+*    MOVE.L  PLAYER_Y,   D1
+*    ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+*    MOVE.L  ENEMY_Y_6,    D2          ; Move Enemy Height to D2  
+*    CMP.L   D1,         D2          ; Do they OverLap ?
+*    BGE     COLLISION              ; Collision !
+*    BRA     COLLISION_CHECK_DONE_6    ; If not no collision
+*    
+*COLLISION_CHECK_DONE_6:               ; No Collision Update points
+*    ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+*    ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+*    MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+*    RTS                             ; Return to subroutine
+
+*---------------------------------------------------------------------------------
+   
 COLLISION:
     BSR     PLAY_OPPS               ; Play Opps Wav
-    CLR.L   PLAYER_SCORE            ; Reset Player Score
     SUB.L   #20, HEALTH_VALUE
     IF.L    (HEALTH_VALUE) <EQ> #0 THEN
     
@@ -629,14 +1083,18 @@ COLLISION:
 	        BSR     DRAW_PLYR_DATA          ; Draw Draw Score, HUD, Player X and Y
             BSR     DRAW_PLAYER             ; Draw Player
             BSR     DRAW_ENEMY              ; Draw Enemy
+            BSR     DRAW_ENEMY_1
+            BSR     DRAW_ENEMY_2
+            BSR     DRAW_ENEMY_3
+            BSR     DRAW_ENEMY_4
+*            BSR     DRAW_ENEMY_6
 
             MOVE.B  #94,        D0
             TRAP    #15
             
             BSR EXIT
     ENDI
-    RTS                             ; Return to subroutine
-
+    RTS                             ; Return to subroutine    
 *-----------------------------------------------------------
 * Subroutine    : EXIT
 * Description   : Exit message and End Game
@@ -708,6 +1166,29 @@ PLYR_ON_GND     DS.L    01  ; Reserve Space for Player on Ground
 ENEMY_X         DS.L    01  ; Reserve Space for Enemy X Position
 ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
 
+ENEMY_X_1       DS.L    01  ; Reserve Space for Enemy X Position
+ENEMY_Y_1       DS.L    01  ; Reserve Space for Enemy Y Position
+
+ENEMY_X_2       DS.L    01  ; Reserve Space for Enemy X Position
+ENEMY_Y_2       DS.L    01  ; Reserve Space for Enemy Y Position
+
+ENEMY_X_3       DS.L    01  ; Reserve Space for Enemy X Position
+ENEMY_Y_3       DS.L    01  ; Reserve Space for Enemy Y Position
+
+ENEMY_X_4       DS.L    01  ; Reserve Space for Enemy X Position
+ENEMY_Y_4       DS.L    01  ; Reserve Space for Enemy Y Position
+
+ENEMY_X_6       DS.L    01  ; Reserve Space for Enemy X Position
+ENEMY_Y_6       DS.L    01  ; Reserve Space for Enemy Y Position
+
+ENEMY_X_7       DS.L    01  ; Reserve Space for Enemy X Position
+ENEMY_Y_7       DS.L    01  ; Reserve Space for Enemy Y Position
+
+ENEMY_X_8       DS.L    01  ; Reserve Space for Enemy X Position
+ENEMY_Y_8       DS.L    01  ; Reserve Space for Enemy Y Position
+
+ENEMY_X_9       DS.L    01  ; Reserve Space for Enemy X Position
+ENEMY_Y_9       DS.L    01  ; Reserve Space for Enemy Y Position
 *-----------------------------------------------------------
 * Section       : Sounds
 * Description   : Sound files, which are then loaded and given
@@ -723,11 +1204,21 @@ OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
 
 *TODO LIST*
-*----------------------------------------------
+*-----------------------------------------------------------------------
 ; Stop player from going off screen TICK
 ; Get random enemy spawner
 ; Put line under the all the messages
-*----------------------------------------------
+; When player gets hit by enemy make it the radius of the collison bigger
+*------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
 
 
 
