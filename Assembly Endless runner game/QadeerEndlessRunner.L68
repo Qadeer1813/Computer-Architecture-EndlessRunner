@@ -1,0 +1,1656 @@
+00001000 Starting Address
+Assembler used: EASy68K Editor/Assembler v5.16.01
+Created On: 05/03/2023 17:01:34
+
+00000000                             1  *-----------------------------------------------------------
+00000000                             2  * Title      : Endless Runner Starter Kit
+00000000                             3  * Written by : Philip Bourke
+00000000                             4  * Date       : 25/02/2023
+00000000                             5  * Description: Endless Runner Project Starter Kit
+00000000                             6  *-----------------------------------------------------------
+00001000                             7      ORG    $1000
+00001000                             8  START:                  ; first instruction of program
+00001000                             9  
+00001000                            10  *-----------------------------------------------------------
+00001000                            11  * Section       : Trap Codes
+00001000                            12  * Description   : Trap Codes used throughout StarterKit
+00001000                            13  *-----------------------------------------------------------
+00001000                            14  * Trap CODES
+00001000  =00000021                 15  TC_SCREEN   EQU         33          ; Screen size information trap code
+00001000  =00000000                 16  TC_S_SIZE   EQU         00          ; Places 0 in D1.L to retrieve Screen width and height in D1.L
+00001000                            17                                      ; First 16 bit Word is screen Width and Second 16 bits is screen Height
+00001000  =00000013                 18  TC_KEYCODE  EQU         19          ; Check for pressed keys
+00001000  =0000005C                 19  TC_DBL_BUF  EQU         92          ; Double Buffer Screen Trap Code
+00001000  =0000000B                 20  TC_CURSR_P  EQU         11          ; Trap code cursor position
+00001000                            21      
+00001000  =00000009                 22  TC_EXIT     EQU         09          ; Exit Trapcode
+00001000                            23  
+00001000                            24  *-----------------------------------------------------------
+00001000                            25  * Section       : Charater Setup
+00001000                            26  * Description   : Size of Player and Enemy and properties
+00001000                            27  * of these characters e.g Starting Positions and Sizes
+00001000                            28  *-----------------------------------------------------------
+00001000  =00000014                 29  PLYR_W_INIT EQU         20          ; Players initial Width
+00001000  =00000014                 30  PLYR_H_INIT EQU         20          ; Players initial Height
+00001000                            31  
+00001000  =00000000                 32  PLYR_DFLT_V EQU         00          ; Default Player Velocity
+00001000  =FFFFFFEC                 33  PLYR_JUMP_V EQU        -20          ; Player Jump Velocity
+00001000                            34  ;-----------------------------------------------------------
+00001000                            35  ;PLYR_UP_V   EQU         -05          ; Player UP Velocity
+00001000                            36  ;PLYR_DOWN_V EQU         02          ; Player DOWN Velocity
+00001000                            37  ;-----------------------------------------------------------
+00001000  =00000001                 38  PLYR_DFLT_G EQU         01          ; Player Default Gravity
+00001000                            39  
+00001000  =00000001                 40  GND_TRUE    EQU         01          ; Player on Ground True
+00001000  =00000000                 41  GND_FALSE   EQU         00          ; Player on Ground False
+00001000                            42  
+00001000  =00000000                 43  RUN_INDEX   EQU         00          ; Player Run Sound Index  
+00001000  =00000001                 44  JMP_INDEX   EQU         01          ; Player Jump Sound Index  
+00001000  =00000002                 45  OPPS_INDEX  EQU         02          ; Player Opps Sound Index
+00001000                            46  
+00001000  =00000014                 47  ENMY_W_INIT EQU         20          ; Enemy initial Width
+00001000  =00000014                 48  ENMY_H_INIT EQU         20          ; Enemy initial Height
+00001000                            49  
+00001000                            50  *-----------------------------------------------------------
+00001000                            51  * Section       : Game Stats
+00001000                            52  * Description   : Points, Health
+00001000                            53  *-----------------------------------------------------------
+00001000  =00000001                 54  POINTS      EQU         01          ; Points added
+00001000  =00002000                 55  HEALTH      EQU         $2000       ; Health Sub
+00001000                            56  *-----------------------------------------------------------
+00001000                            57  * Section       : Keyboard Keys
+00001000                            58  * Description   : Spacebar and Escape or two functioning keys
+00001000                            59  * Spacebar to JUMP and Escape to Exit Game
+00001000                            60  *-----------------------------------------------------------
+00001000  =00000020                 61  SPACEBAR    EQU         $20         ; Spacebar ASCII Keycode
+00001000  =0000001B                 62  ESCAPE      EQU         $1B         ; Escape ASCII Keycode
+00001000                            63  ;------------------------------------------------------------  
+00001000  =00000026                 64  UPARROW     EQU         $26         ; Right key ASCII Keycode
+00001000  =00000028                 65  DOWNARROW   EQU         $28         ; Down Key ASCII Keycode 
+00001000                            66  ;------------------------------------------------------------    
+00001000                            67  *-----------------------------------------------------------
+00001000                            68  * Subroutine    : Initialise
+00001000                            69  * Description   : Initialise game data into memory such as 
+00001000                            70  * sounds and screen size
+00001000                            71  *-----------------------------------------------------------
+00001000                            72  INITIALISE:
+00001000                            73      ; Initialise Sounds
+00001000  6100 05C0                 74      BSR     RUN_LOAD                ; Load Run Sound into Memory
+00001004  6100 05DA                 75      BSR     JUMP_LOAD               ; Load Jump Sound into Memory
+00001008  6100 05F4                 76      BSR     OPPS_LOAD               ; Load Opps (Collision) Sound into Memory
+0000100C                            77  
+0000100C                            78      ; Screen Size
+0000100C  103C 0021                 79      MOVE.B  #TC_SCREEN, D0          ; access screen information
+00001010  7200                      80      MOVE.L  #TC_S_SIZE, D1          ; placing 0 in D1 triggers loading screen size information
+00001012  4E4F                      81      TRAP    #15                     ; interpret D0 and D1 for screen size
+00001014  33C1 00001D3C             82      MOVE.W  D1,         SCREEN_H    ; place screen height in memory location
+0000101A  4841                      83      SWAP    D1                      ; Swap top and bottom word to retrive screen size
+0000101C  33C1 00001D3A             84      MOVE.W  D1,         SCREEN_W    ; place screen width in memory location
+00001022                            85  
+00001022                            86      ; Place the Player at the center of the screen
+00001022  4281                      87      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001024                            88      ;MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001024                            89      ;DIVU    #02,        D1          ; divide by 2 for center on X Axis
+00001024  23FC 00000000 00001D42    90      MOVE.L  #00,         PLAYER_X    ; Players X set to 0 Position
+0000102E                            91  
+0000102E  4281                      92      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001030  3239 00001D3C             93      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+00001036                            94  *    DIVU    #02,        D1          ; divide by 2 for center on Y Axis
+00001036  323C 00CD                 95      MOVE.W  #205,        D1          ; divide by 2 for center on Y Axis
+0000103A  23C1 00001D46             96      MOVE.L  D1,         PLAYER_Y    ; Players Y Position
+00001040                            97  
+00001040                            98      ; Initialise Player Score
+00001040  4281                      99      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001042  7200                     100      MOVE.L  #0,         D1          ; Init Score
+00001044  23C1 00001D4A            101      MOVE.L  D1,         PLAYER_SCORE
+0000104A                           102      
+0000104A                           103      ;Initialize Health
+0000104A  4281                     104      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+0000104C  7264                     105      MOVE.L  #100,       D1          ; Init Score
+0000104E  23C1 00001D4E            106      MOVE.L  D1,         HEALTH_VALUE
+00001054                           107  
+00001054                           108      ; Initialize Player on Ground
+00001054  23FC 00000001 00001D5A   109      MOVE.L  #GND_TRUE,  PLYR_ON_GND ; Init Player on Ground
+0000105E                           110  
+0000105E                           111      ; Initial Position for Enemy 1   
+0000105E  4281                     112      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001060  3239 00001D3A            113      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001066  23C1 00001D5E            114      MOVE.L  D1,         ENEMY_X_1   ; Enemy X Position
+0000106C                           115  
+0000106C  4281                     116      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+0000106E  3239 00001D3C            117      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+00001074  323C 0055                118      MOVE.W  #85,        D1          ; divide by 2 for center on Y Axis
+00001078  23C1 00001D62            119      MOVE.L  D1,         ENEMY_Y_1   ; Enemy Y Position
+0000107E                           120  
+0000107E                           121      ; Initial Position for Enemy 2   
+0000107E  4281                     122      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001080  3239 00001D3A            123      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001086  23C1 00001D66            124      MOVE.L  D1,         ENEMY_X_2   ; Enemy X Position
+0000108C                           125  
+0000108C  4281                     126      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+0000108E  3239 00001D3C            127      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+00001094  323C 0073                128      MOVE.W  #115,        D1          ; divide by 2 for center on Y Axis
+00001098  23C1 00001D6A            129      MOVE.L  D1,         ENEMY_Y_2   ; Enemy Y Position
+0000109E                           130  
+0000109E                           131      ; Initial Position for Enemy 3   
+0000109E  4281                     132      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000010A0  3239 00001D3A            133      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+000010A6  23C1 00001D6E            134      MOVE.L  D1,         ENEMY_X_3   ; Enemy X Position
+000010AC                           135  
+000010AC  4281                     136      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000010AE  3239 00001D3C            137      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+000010B4  323C 0091                138      MOVE.W  #145,        D1          ; divide by 2 for center on Y Axis
+000010B8  23C1 00001D72            139      MOVE.L  D1,         ENEMY_Y_3   ; Enemy Y Position
+000010BE                           140      
+000010BE                           141      ; Initial Position for Enemy 4   
+000010BE  4281                     142      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000010C0  3239 00001D3A            143      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+000010C6  23C1 00001D76            144      MOVE.L  D1,         ENEMY_X_4   ; Enemy X Position
+000010CC                           145  
+000010CC  4281                     146      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000010CE  3239 00001D3C            147      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+000010D4  323C 00AF                148      MOVE.W  #175,        D1          ; divide by 2 for center on Y Axis
+000010D8  23C1 00001D7A            149      MOVE.L  D1,         ENEMY_Y_4   ; Enemy Y Position
+000010DE                           150  
+000010DE                           151      ; Initial Position for Enemy Center(5)
+000010DE  4281                     152      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000010E0  3239 00001D3A            153      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+000010E6  23C1 00001D7E            154      MOVE.L  D1,         ENEMY_X_5     ; Enemy X Position
+000010EC                           155      
+000010EC  4281                     156      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000010EE  3239 00001D3C            157      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+000010F4                           158  *    DIVU    #2,         D1          ; divide by 2 for center on Y Axis
+000010F4  323C 00CD                159      MOVE.W  #205,        D1          ; divide by 2 for center on Y Axis
+000010F8  23C1 00001D82            160      MOVE.L  D1,         ENEMY_Y_5   ; Enemy Y Position
+000010FE                           161      
+000010FE                           162      ; Initial Position for Enemy 6   
+000010FE  4281                     163      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001100  3239 00001D3A            164      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001106  23C1 00001D86            165      MOVE.L  D1,         ENEMY_X_6   ; Enemy X Position
+0000110C                           166  
+0000110C  4282                     167      CLR.L   D2                      ; Clear contents of D1 (XOR is faster)
+0000110E  3439 00001D3C            168      MOVE.W  SCREEN_H,   D2          ; Place Screen width in D1
+00001114  343C 00EB                169      MOVE.W  #235,       D2          ; divide by 2 for center on Y Axis
+00001118  23C2 00001D8A            170      MOVE.L  D2,         ENEMY_Y_6   ; Enemy Y Position
+0000111E                           171      
+0000111E                           172      ; Initial Position for Enemy 7   
+0000111E  4281                     173      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001120  3239 00001D3A            174      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001126  23C1 00001D8E            175      MOVE.L  D1,         ENEMY_X_7   ; Enemy X Position
+0000112C                           176  
+0000112C  4281                     177      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+0000112E  3239 00001D3C            178      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+00001134  323C 0109                179      MOVE.W  #265,        D1          ; divide by 2 for center on Y Axis
+00001138  23C1 00001D92            180      MOVE.L  D1,         ENEMY_Y_7   ; Enemy Y Position
+0000113E                           181  
+0000113E                           182      ; Initial Position for Enemy 8   
+0000113E  4281                     183      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001140  3239 00001D3A            184      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001146  23C1 00001D96            185      MOVE.L  D1,         ENEMY_X_8   ; Enemy X Position
+0000114C                           186  
+0000114C  4281                     187      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+0000114E  3239 00001D3C            188      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+00001154  323C 0127                189      MOVE.W  #295,        D1          ; divide by 2 for center on Y Axis
+00001158  23C1 00001D9A            190      MOVE.L  D1,         ENEMY_Y_8   ; Enemy Y Position
+0000115E                           191  
+0000115E                           192      ; Initial Position for Enemy 9   
+0000115E  4281                     193      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001160  3239 00001D3A            194      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001166  23C1 00001D9E            195      MOVE.L  D1,         ENEMY_X_9   ; Enemy X Position
+0000116C                           196  
+0000116C  4281                     197      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+0000116E  3239 00001D3C            198      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+00001174  323C 0145                199      MOVE.W  #325,        D1          ; divide by 2 for center on Y Axis
+00001178  23C1 00001DA2            200      MOVE.L  D1,         ENEMY_Y_9   ; Enemy Y Position
+0000117E                           201  
+0000117E                           202          
+0000117E                           203      ; Enable the screen back buffer(see easy 68k help)
+0000117E  103C 005C                204      MOVE.B  #TC_DBL_BUF,D0          ; 92 Enables Double Buffer
+00001182  123C 0011                205      MOVE.B  #17,        D1          ; Combine Tasks
+00001186  4E4F                     206      TRAP    #15                     ; Trap (Perform action)
+00001188                           207  
+00001188                           208      ; Clear the screen (see easy 68k help)
+00001188  103C 000B                209      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+0000118C  323C FF00                210      MOVE.W  #$FF00,     D1          ; Fill Screen Clear
+00001190  4E4F                     211      TRAP    #15                     ; Trap (Perform action)
+00001192                           212  
+00001192                           213  *-----------------------------------------------------------
+00001192                           214  * Subroutine    : Game
+00001192                           215  * Description   : Game including main GameLoop. GameLoop is like
+00001192                           216  * a while loop in that it runs forever until interupted
+00001192                           217  * (Input, Update, Draw). The Enemies Run at Player Jump to Avoid
+00001192                           218  *-----------------------------------------------------------
+00001192                           219  GAME:
+00001192  6100 0440                220      BSR     PLAY_RUN                ; Play Run Wav
+00001196                           221  GAMELOOP:
+00001196  7008                     222      MOVEQ   #08,D0                   ; Get time in 1/100 seconds
+00001198  4E4F                     223      TRAP    #15
+0000119A                           224  
+0000119A  2F01                     225      MOVE.L  D1,-(SP)                ; Push time on the stack
+0000119C                           226      
+0000119C                           227      ; Main Gameloop
+0000119C  6100 005E                228      BSR     INPUT                   ; Check Keyboard Input
+000011A0  6100 00AA                229      BSR     UPDATE_1
+000011A4  6100 00C0                230      BSR     UPDATE_2
+000011A8  6100 00D6                231      BSR     UPDATE_3
+000011AC  6100 00EC                232      BSR     UPDATE_4
+000011B0  6100 0102                233      BSR     UPDATE_5                  ; Update positions and points(5)
+000011B4  6100 0118                234      BSR     UPDATE_6
+000011B8  6100 012E                235      BSR     UPDATE_7
+000011BC  6100 0144                236      BSR     UPDATE_8
+000011C0  6100 015A                237      BSR     UPDATE_9
+000011C4  6100 0686                238      BSR     CHECK_COLLISIONS_1
+000011C8  6100 06F8                239      BSR     CHECK_COLLISIONS_2
+000011CC  6100 076A                240      BSR     CHECK_COLLISIONS_3
+000011D0  6100 07DC                241      BSR     CHECK_COLLISIONS_4
+000011D4  6100 084E                242      BSR     CHECK_COLLISIONS_5        ; Check for Collisions(5)
+000011D8  6100 08C0                243      BSR     CHECK_COLLISIONS_6
+000011DC  6100 0932                244      BSR     CHECK_COLLISIONS_7 
+000011E0  6100 09A4                245      BSR     CHECK_COLLISIONS_8
+000011E4  6100 0A16                246      BSR     CHECK_COLLISIONS_9
+000011E8  6100 0266                247      BSR     DRAW                    ; Draw the Scene
+000011EC                           248      
+000011EC  2E1F                     249      MOVE.L  (SP)+,D7
+000011EE                           250  WAIT:
+000011EE  7008                     251      MOVEQ   #8,D0                   ; Get time in 1/100 ths seconds
+000011F0  4E4F                     252      TRAP    #15
+000011F2  9287                     253      SUB.L   D7,D1                   ; Subtract previous time from current time
+000011F4  B23C 0002                254      CMP.B   #02,D1                  ; Compare with 9/100ths adding the wait allowed the character and enemy to slow down to the same pace 
+000011F8                           255                                      ;but i also changed the speed of the enenemy  so the enemy is slightly faster than character
+000011F8  6BF4                     256      BMI.S   WAIT                    ; Loop if time not up yet
+000011FA                           257  
+000011FA  609A                     258      BRA     GAMELOOP                ; Loop back to Game loop
+000011FC                           259      
+000011FC                           260  
+000011FC                           261  *-----------------------------------------------------------
+000011FC                           262  * Subroutine    : Input
+000011FC                           263  * Description   : Process Keyboard Input
+000011FC                           264  *-----------------------------------------------------------
+000011FC                           265  INPUT:
+000011FC                           266      ; Process Input
+000011FC  4281                     267      CLR.L   D1                      ; Clear Data Register
+000011FE  103C 0013                268      MOVE.B  #TC_KEYCODE,D0          ; Listen for Keys
+00001202  4E4F                     269      TRAP    #15                     ; Trap (Perform action)
+00001204  1401                     270      MOVE.B  D1,         D2          ; Move last key D1 to D2
+00001206  B43C 0000                271      CMP.B   #00,        D2          ; Key is pressed
+0000120A  6700 000E                272      BEQ     PROCESS_INPUT           ; Process Key
+0000120E  4E4F                     273      TRAP    #15                     ; Trap for Last Key
+00001210                           274      ; Check if key still pressed
+00001210  B23C 00FF                275      CMP.B   #$FF,       D1          ; Is it still pressed
+00001214  6700 0004                276      BEQ     PROCESS_INPUT           ; Process Last Key
+00001218  4E75                     277      RTS                             ; Return to subroutine
+0000121A                           278  
+0000121A                           279  *-----------------------------------------------------------
+0000121A                           280  * Subroutine    : Process Input
+0000121A                           281  * Description   : Branch based on keys pressed
+0000121A                           282  *-----------------------------------------------------------
+0000121A                           283  PROCESS_INPUT:
+0000121A  23C2 00001D3E            284      MOVE.L  D2,         CURRENT_KEY ; Put Current Key in Memory
+00001220  0CB9 0000001B 00001D3E   285      CMP.L   #ESCAPE,    CURRENT_KEY ; Is Current Key Escape
+0000122A  6700 0AA4                286      BEQ     EXIT                    ; Exit if Escape
+0000122E                           287      ;--------------------------------------------------
+0000122E  0CB9 00000026 00001D3E   288      CMP.L   #UPARROW,  CURRENT_KEY  ; Is Current Key UP
+00001238  6700 00FC                289      BEQ     UP                      ; Up
+0000123C  0CB9 00000028 00001D3E   290      CMP.L   #DOWNARROW,CURRENT_KEY  ; Is Current Key Down
+00001246  6700 010E                291      BEQ     DOWN                    ; Down
+0000124A                           292      ;--------------------------------------------------
+0000124A                           293      ;BRA     IDLE                    ; Or Idle
+0000124A  4E75                     294      RTS                             ; Return to subroutine
+0000124C                           295  
+0000124C                           296  *-----------------------------------------------------------
+0000124C                           297  * Subroutine    : Update
+0000124C                           298  * Description   : Main update loop update Player and Enemies
+0000124C                           299  *-----------------------------------------------------------  
+0000124C                           300  UPDATE_1:
+0000124C                           301      ; Move the Enemy
+0000124C  4281                     302      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+0000124E  4281                     303      CLR.L   D1                      ; Clear the contents of D0
+00001250  2239 00001D5E            304      MOVE.L  ENEMY_X_1,  D1          ; Move the Enemy X Position to D0
+00001256  B2BC 00000000            305      CMP.L   #00,        D1
+0000125C  6F00 0162                306      BLE     RESET_ENEMY_POSITION_1  ; Reset Enemy if off Screen
+00001260  6000 0116                307      BRA     MOVE_ENEMY_1
+00001264  4E75                     308      RTS        
+00001266                           309  
+00001266                           310  UPDATE_2:
+00001266                           311      ; Move the Enemy
+00001266  4281                     312      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001268  4281                     313      CLR.L   D1                      ; Clear the contents of D0
+0000126A  2239 00001D66            314      MOVE.L  ENEMY_X_2,  D1          ; Move the Enemy X Position to D0
+00001270  B2BC 00000000            315      CMP.L   #00,        D1
+00001276  6F00 0158                316      BLE     RESET_ENEMY_POSITION_2  ; Reset Enemy if off Screen
+0000127A  6000 0124                317      BRA     MOVE_ENEMY_2
+0000127E  4E75                     318      RTS   
+00001280                           319      
+00001280                           320  UPDATE_3:
+00001280                           321      ; Move the Enemy
+00001280  4281                     322      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001282  4281                     323      CLR.L   D1                      ; Clear the contents of D0
+00001284  2239 00001D6E            324      MOVE.L  ENEMY_X_3,  D1          ; Move the Enemy X Position to D0
+0000128A  B2BC 00000000            325      CMP.L   #00,        D1
+00001290  6F00 014E                326      BLE     RESET_ENEMY_POSITION_3  ; Reset Enemy if off Screen
+00001294  6000 00EA                327      BRA     MOVE_ENEMY_3
+00001298  4E75                     328      RTS   
+0000129A                           329  
+0000129A                           330  UPDATE_4:
+0000129A                           331      ; Move the Enemy
+0000129A  4281                     332      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+0000129C  4281                     333      CLR.L   D1                      ; Clear the contents of D0
+0000129E  2239 00001D76            334      MOVE.L  ENEMY_X_4,  D1          ; Move the Enemy X Position to D0
+000012A4  B2BC 00000000            335      CMP.L   #00,        D1
+000012AA  6F00 0144                336      BLE     RESET_ENEMY_POSITION_4  ; Reset Enemy if off Screen
+000012AE  6000 00F8                337      BRA     MOVE_ENEMY_4
+000012B2  4E75                     338      RTS   
+000012B4                           339  
+000012B4                           340  UPDATE_5:
+000012B4                           341      ; Move the Enemy
+000012B4  4281                     342      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000012B6  4281                     343      CLR.L   D1                      ; Clear the contents of D0
+000012B8  2239 00001D7E            344      MOVE.L  ENEMY_X_5,    D1          ; Move the Enemy X Position to D0
+000012BE  B2BC 00000000            345      CMP.L   #00,        D1
+000012C4  6F00 013A                346      BLE     RESET_ENEMY_POSITION_5    ; Reset Enemy if off Screen
+000012C8  6000 00BE                347      BRA     MOVE_ENEMY_5              ; Move the Enemy
+000012CC  4E75                     348      RTS                             ; Return to subroutine
+000012CE                           349      
+000012CE                           350  UPDATE_6:
+000012CE                           351      ; Move the Enemy
+000012CE  4281                     352      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000012D0  4281                     353      CLR.L   D1                      ; Clear the contents of D0
+000012D2  2239 00001D86            354      MOVE.L  ENEMY_X_6,  D1          ; Move the Enemy X Position to D0
+000012D8  B2BC 00000000            355      CMP.L   #00,        D1
+000012DE  6F00 0130                356      BLE     RESET_ENEMY_POSITION_6  ; Reset Enemy if off Screen
+000012E2  6000 00CC                357      BRA     MOVE_ENEMY_6
+000012E6  4E75                     358      RTS 
+000012E8                           359  
+000012E8                           360  UPDATE_7:
+000012E8                           361      ; Move the Enemy
+000012E8  4281                     362      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000012EA  4281                     363      CLR.L   D1                      ; Clear the contents of D0
+000012EC  2239 00001D8E            364      MOVE.L  ENEMY_X_7,  D1          ; Move the Enemy X Position to D0
+000012F2  B2BC 00000000            365      CMP.L   #00,        D1
+000012F8  6F00 0126                366      BLE     RESET_ENEMY_POSITION_7  ; Reset Enemy if off Screen
+000012FC  6000 0092                367      BRA     MOVE_ENEMY_7
+00001300  4E75                     368      RTS   
+00001302                           369      
+00001302                           370  UPDATE_8:
+00001302                           371      ; Move the Enemy
+00001302  4281                     372      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001304  4281                     373      CLR.L   D1                      ; Clear the contents of D0
+00001306  2239 00001D96            374      MOVE.L  ENEMY_X_8,  D1          ; Move the Enemy X Position to D0
+0000130C  B2BC 00000000            375      CMP.L   #00,        D1
+00001312  6F00 011C                376      BLE     RESET_ENEMY_POSITION_8  ; Reset Enemy if off Screen
+00001316  6000 00A0                377      BRA     MOVE_ENEMY_8
+0000131A  4E75                     378      RTS  
+0000131C                           379      
+0000131C                           380  UPDATE_9:
+0000131C                           381      ; Move the Enemy
+0000131C  4281                     382      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+0000131E  4281                     383      CLR.L   D1                      ; Clear the contents of D0
+00001320  2239 00001D9E            384      MOVE.L  ENEMY_X_9,  D1          ; Move the Enemy X Position to D0
+00001326  B2BC 00000000            385      CMP.L   #00,        D1
+0000132C  6F00 0112                386      BLE     RESET_ENEMY_POSITION_9  ; Reset Enemy if off Screen
+00001330  6000 0066                387      BRA     MOVE_ENEMY_9
+00001334  4E75                     388      RTS  
+00001336                           389  *-----------------------------------------------------------
+00001336                           390  * Subroutine    : UP
+00001336                           391  * Description   : Move the enemy up 2 frames
+00001336                           392  * By: Qadeer Hussain
+00001336                           393  *-----------------------------------------------------------
+00001336                           394  UP:  
+00001336  57B9 00001D46            395      SUB.L   #3, PLAYER_Y
+0000133C                           396      ; Check if player is out of bounds
+0000133C  0CB9 00000055 00001D46   397      CMP.L   #85, PLAYER_Y     ; check if player is above top of screen
+00001346  6D00 0004                398      BLT     OUT_OF_BOUNDS_UP
+0000134A  4E75                     399      RTS
+0000134C                           400      
+0000134C                           401  OUT_OF_BOUNDS_UP:
+0000134C                           402      ; Player is out of bounds, move back into screen
+0000134C  7403                     403      MOVE.L  #3, D2   ; set D2 to the amount to move
+0000134E  D5B9 00001D46            404      ADD.L   D2, PLAYER_Y  ; move player down
+00001354  4E75                     405      RTS
+00001356                           406  *-----------------------------------------------------------
+00001356                           407  * Subroutine    : DOWN
+00001356                           408  * Description   : Move the enemy down 2 frames
+00001356                           409  * By: Qadeer Hussain
+00001356                           410  *-----------------------------------------------------------
+00001356                           411  DOWN:
+00001356  56B9 00001D46            412      ADD.L   #3, PLAYER_Y 
+0000135C                           413      ; Check if player is out of bounds
+0000135C  0CB9 00000146 00001D46   414      CMP.L   #326, PLAYER_Y  ; check if player is below bottom of screen
+00001366  6C00 0004                415      BGE     OUT_OF_BOUNDS_DOWN
+0000136A  4E75                     416      RTS    
+0000136C                           417  
+0000136C                           418  OUT_OF_BOUNDS_DOWN:
+0000136C                           419      ; Player is out of bounds, move back into screen
+0000136C  7403                     420      MOVE.L  #3, D2   ; set D2 to the amount to move
+0000136E  4482                     421      NEG.L   D2      ; negate D2 to move upwards
+00001370  D5B9 00001D46            422      ADD.L   D2, PLAYER_Y  ; move player up
+00001376  4E75                     423      RTS
+00001378                           424  *-----------------------------------------------------------
+00001378                           425  * Subroutine    : Move Enemy
+00001378                           426  * Description   : Move Enemy Right to Left
+00001378                           427  *-----------------------------------------------------------
+00001378                           428  MOVE_ENEMY_1:
+00001378  5BB9 00001D5E            429       SUB.L   #05,   ENEMY_X_1   ; Move enemy by X Value
+0000137E  4E75                     430       RTS
+00001380                           431       
+00001380                           432  MOVE_ENEMY_3:
+00001380  5BB9 00001D6E            433       SUB.L   #05,   ENEMY_X_3   ; Move enemy by X Value
+00001386  4E75                     434       RTS
+00001388                           435  
+00001388                           436  MOVE_ENEMY_5:
+00001388  5BB9 00001D7E            437      SUB.L    #05,   ENEMY_X_5   ; Move enemy(5) by X Value
+0000138E  4E75                     438      RTS
+00001390                           439      
+00001390                           440  MOVE_ENEMY_7:
+00001390  5BB9 00001D8E            441      SUB.L    #05,   ENEMY_X_7   ; Move enemy(5) by X Value
+00001396  4E75                     442      RTS
+00001398                           443       
+00001398                           444  MOVE_ENEMY_9:
+00001398  5BB9 00001D9E            445       SUB.L   #05,   ENEMY_X_9   ; Move enemy by X Value
+0000139E  4E75                     446       RTS  
+000013A0                           447       
+000013A0                           448  MOVE_ENEMY_2:
+000013A0  59B9 00001D66            449       SUB.L   #04,   ENEMY_X_2   ; Move enemy by X Value
+000013A6  4E75                     450       RTS
+000013A8                           451       
+000013A8                           452  MOVE_ENEMY_4:
+000013A8  59B9 00001D76            453       SUB.L   #04,   ENEMY_X_4   ; Move enemy by X Value
+000013AE  4E75                     454       RTS
+000013B0                           455      
+000013B0                           456  MOVE_ENEMY_6:
+000013B0  59B9 00001D86            457       SUB.L   #04,   ENEMY_X_6   ; Move enemy by X Value
+000013B6  4E75                     458       RTS  
+000013B8                           459       
+000013B8                           460  MOVE_ENEMY_8:
+000013B8  59B9 00001D96            461       SUB.L   #04,   ENEMY_X_8   ; Move enemy by X Value
+000013BE  4E75                     462       RTS  
+000013C0                           463       
+000013C0                           464  
+000013C0                           465       
+000013C0                           466  
+000013C0                           467      
+000013C0                           468  *-----------------------------------------------------------
+000013C0                           469  * Subroutine    : Reset Enemy
+000013C0                           470  * Description   : Reset Enemy if to passes 0 to Right of Screen
+000013C0                           471  *-----------------------------------------------------------    
+000013C0                           472  RESET_ENEMY_POSITION_1:
+000013C0  4281                     473      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000013C2  3239 00001D3A            474      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+000013C8  23C1 00001D5E            475      MOVE.L  D1,         ENEMY_X_1     ; Enemy X Position
+000013CE  4E75                     476      RTS
+000013D0                           477  RESET_ENEMY_POSITION_2:
+000013D0  4281                     478      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000013D2  3239 00001D3A            479      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+000013D8  23C1 00001D66            480      MOVE.L  D1,         ENEMY_X_2     ; Enemy X Position
+000013DE  4E75                     481      RTS
+000013E0                           482      
+000013E0                           483  RESET_ENEMY_POSITION_3:
+000013E0  4281                     484      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000013E2  3239 00001D3A            485      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+000013E8  23C1 00001D6E            486      MOVE.L  D1,         ENEMY_X_3     ; Enemy X Position
+000013EE  4E75                     487      RTS
+000013F0                           488      
+000013F0                           489  RESET_ENEMY_POSITION_4:
+000013F0  4281                     490      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000013F2  3239 00001D3A            491      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+000013F8  23C1 00001D76            492      MOVE.L  D1,         ENEMY_X_4     ; Enemy X Position
+000013FE  4E75                     493      RTS
+00001400                           494      
+00001400                           495  RESET_ENEMY_POSITION_5:
+00001400  4281                     496      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001402  3239 00001D3A            497      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001408  23C1 00001D7E            498      MOVE.L  D1,         ENEMY_X_5     ; Enemy X Position
+0000140E  4E75                     499      RTS
+00001410                           500      
+00001410                           501  RESET_ENEMY_POSITION_6:
+00001410  4281                     502      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001412  3239 00001D3A            503      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001418  23C1 00001D86            504      MOVE.L  D1,         ENEMY_X_6     ; Enemy X Position
+0000141E  4E75                     505      RTS
+00001420                           506      
+00001420                           507  RESET_ENEMY_POSITION_7:
+00001420  4281                     508      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001422  3239 00001D3A            509      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001428  23C1 00001D8E            510      MOVE.L  D1,         ENEMY_X_7     ; Enemy X Position
+0000142E  4E75                     511      RTS
+00001430                           512      
+00001430                           513  RESET_ENEMY_POSITION_8:
+00001430  4281                     514      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001432  3239 00001D3A            515      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001438  23C1 00001D96            516      MOVE.L  D1,         ENEMY_X_8     ; Enemy X Position
+0000143E  4E75                     517      RTS
+00001440                           518      
+00001440                           519  RESET_ENEMY_POSITION_9:
+00001440  4281                     520      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001442  3239 00001D3A            521      MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+00001448  23C1 00001D9E            522      MOVE.L  D1,         ENEMY_X_9     ; Enemy X Position
+0000144E  4E75                     523      RTS
+00001450                           524  *-----------------------------------------------------------
+00001450                           525  * Subroutine    : Draw
+00001450                           526  * Description   : Draw Screen
+00001450                           527  *-----------------------------------------------------------
+00001450                           528  DRAW: 
+00001450                           529      ; Enable back buffer
+00001450  103C 005E                530      MOVE.B  #94,        D0
+00001454  4E4F                     531      TRAP    #15
+00001456                           532  
+00001456                           533      ; Clear the screen
+00001456  103C 000B                534      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+0000145A  323C FF00                535      MOVE.W  #$FF00,     D1          ; Clear contents
+0000145E  4E4F                     536      TRAP    #15                     ; Trap (Perform action)
+00001460                           537  
+00001460  6100 002C                538      BSR     DRAW_PLYR_DATA          ; Draw Draw Score, HUD, Player X and Y
+00001464  6100 01B6                539      BSR     DRAW_PLAYER             ; Draw Player
+00001468  6100 0302                540      BSR     DRAW_ENEMY_6
+0000146C  6100 0336                541      BSR     DRAW_ENEMY_7
+00001470  6100 036A                542      BSR     DRAW_ENEMY_8
+00001474  6100 039E                543      BSR     DRAW_ENEMY_9
+00001478  6100 01DA                544      BSR     DRAW_ENEMY_1            ; Draw Enemey No.1
+0000147C  6100 020E                545      BSR     DRAW_ENEMY_2
+00001480  6100 0242                546      BSR     DRAW_ENEMY_3
+00001484  6100 0276                547      BSR     DRAW_ENEMY_4
+00001488  6100 02AA                548      BSR     DRAW_ENEMY_5              ; Draw Enemy No.5
+0000148C                           549      
+0000148C  4E75                     550      RTS                             ; Return to subroutine
+0000148E                           551  
+0000148E                           552  *-----------------------------------------------------------
+0000148E                           553  * Subroutine    : Draw Player Data
+0000148E                           554  * Description   : Draw Player X, Y, Velocity, Gravity and OnGround
+0000148E                           555  *-----------------------------------------------------------
+0000148E                           556  DRAW_PLYR_DATA:
+0000148E  4281                     557      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001490                           558  
+00001490                           559      ; Player Score Message
+00001490  103C 000B                560      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+00001494  323C 0201                561      MOVE.W  #$0201,     D1          ; Col 02, Row 01
+00001498  4E4F                     562      TRAP    #15                     ; Trap (Perform action)
+0000149A  43F9 00001CF0            563      LEA     SCORE_MSG,  A1          ; Score Message
+000014A0  303C 000D                564      MOVE    #13,        D0          ; No Line feed
+000014A4  4E4F                     565      TRAP    #15                     ; Trap (Perform action)
+000014A6                           566  
+000014A6                           567      ; Player Score Value
+000014A6  103C 000B                568      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+000014AA  323C 0901                569      MOVE.W  #$0901,     D1          ; Col 09, Row 01
+000014AE  4E4F                     570      TRAP    #15                     ; Trap (Perform action)
+000014B0  103C 0003                571      MOVE.B  #03,        D0          ; Display number at D1.L
+000014B4  2239 00001D4A            572      MOVE.L  PLAYER_SCORE,D1         ; Move Score to D1.L
+000014BA  4E4F                     573      TRAP    #15                     ; Trap (Perform action)
+000014BC                           574      
+000014BC                           575      ; Health Message
+000014BC  103C 000B                576      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+000014C0  323C 0203                577      MOVE.W  #$0203,     D1          ; Col 02, Row 03
+000014C4  4E4F                     578      TRAP    #15                     ; Trap (Perform action)
+000014C6  43F9 00001D23            579      LEA     HEALTH_MSG,   A1          ; Health Message
+000014CC  303C 000D                580      MOVE    #13,        D0          ; No Line feed
+000014D0  4E4F                     581      TRAP    #15                     ; Trap (Perform action)
+000014D2                           582      
+000014D2                           583      ; Health Value
+000014D2  103C 000B                584      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+000014D6  323C 0903                585      MOVE.W  #$0903,     D1          ; Col 09, Row 03
+000014DA  4E4F                     586      TRAP    #15                     ; Trap (Perform action)
+000014DC  103C 0003                587      MOVE.B  #03,        D0          ; Display number at D1.L
+000014E0  2239 00001D4E            588      MOVE.L  HEALTH_VALUE,  D1          ; Move Score to D1.L
+000014E6  4E4F                     589      TRAP    #15                     ; Trap (Perform action)
+000014E8                           590      
+000014E8                           591      ; Player X Message
+000014E8  103C 000B                592      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+000014EC  323C 0202                593      MOVE.W  #$0202,     D1          ; Col 02, Row 02
+000014F0  4E4F                     594      TRAP    #15                     ; Trap (Perform action)
+000014F2  43F9 00001D1D            595      LEA     X_MSG,      A1          ; X Message
+000014F8  303C 000D                596      MOVE    #13,        D0          ; No Line feed
+000014FC  4E4F                     597      TRAP    #15                     ; Trap (Perform action)
+000014FE                           598      
+000014FE                           599      ; Player X
+000014FE  103C 000B                600      MOVE.B  #TC_CURSR_P, D0          ; Set Cursor Position
+00001502  323C 0502                601      MOVE.W  #$0502,     D1          ; Col 05, Row 02
+00001506  4E4F                     602      TRAP    #15                     ; Trap (Perform action)
+00001508  103C 0003                603      MOVE.B  #03,        D0          ; Display number at D1.L
+0000150C  2239 00001D42            604      MOVE.L  PLAYER_X,   D1          ; Move X to D1.L
+00001512  4E4F                     605      TRAP    #15                     ; Trap (Perform action)
+00001514                           606      
+00001514                           607      ; Player Y Message
+00001514  103C 000B                608      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+00001518  323C 1002                609      MOVE.W  #$1002,     D1          ; Col 10, Row 02
+0000151C  4E4F                     610      TRAP    #15                     ; Trap (Perform action)
+0000151E  43F9 00001D20            611      LEA     Y_MSG,      A1          ; Y Message
+00001524  303C 000D                612      MOVE    #13,        D0          ; No Line feed
+00001528  4E4F                     613      TRAP    #15                     ; Trap (Perform action)
+0000152A                           614      
+0000152A                           615      ; Player Y
+0000152A  103C 000B                616      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+0000152E  323C 1202                617      MOVE.W  #$1202,     D1          ; Col 12, Row 02
+00001532  4E4F                     618      TRAP    #15                     ; Trap (Perform action)
+00001534  103C 0003                619      MOVE.B  #03,        D0          ; Display number at D1.L
+00001538  2239 00001D46            620      MOVE.L  PLAYER_Y,   D1          ; Move X to D1.L
+0000153E  4E4F                     621      TRAP    #15                     ; Trap (Perform action) 
+00001540                           622      
+00001540                           623      ; Show Keys Pressed
+00001540  103C 000B                624      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+00001544  323C 2001                625      MOVE.W  #$2001,     D1          ; Col 20, Row 1
+00001548  4E4F                     626      TRAP    #15                     ; Trap (Perform action)
+0000154A  43F9 00001CF9            627      LEA     KEYCODE_MSG, A1         ; Keycode
+00001550  303C 000D                628      MOVE    #13,        D0          ; No Line feed
+00001554  4E4F                     629      TRAP    #15                     ; Trap (Perform action)
+00001556                           630  
+00001556                           631      ; Show KeyCode
+00001556  103C 000B                632      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+0000155A  323C 3001                633      MOVE.W  #$3001,     D1          ; Col 30, Row 1
+0000155E  4E4F                     634      TRAP    #15                     ; Trap (Perform action)    
+00001560  2239 00001D3E            635      MOVE.L  CURRENT_KEY,D1          ; Move Key Pressed to D1
+00001566  103C 0003                636      MOVE.B  #03,        D0          ; Display the contents of D1
+0000156A  4E4F                     637      TRAP    #15                     ; Trap (Perform action)
+0000156C                           638  
+0000156C  4E75                     639      RTS  
+0000156E                           640      
+0000156E                           641  *-----------------------------------------------------------
+0000156E                           642  * Subroutine    : Player is on Ground
+0000156E                           643  * Description   : Check if the Player is on or off Ground
+0000156E                           644  *-----------------------------------------------------------
+0000156E                           645  IS_PLAYER_ON_GND:
+0000156E                           646      ; Check if Player is on Ground
+0000156E  4281                     647      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001570  4282                     648      CLR.L   D2                      ; Clear contents of D2 (XOR is faster)
+00001572  3239 00001D3C            649      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+00001578  82FC 0002                650      DIVU    #02,        D1          ; divide by 2 for center on Y Axis
+0000157C  2439 00001D46            651      MOVE.L  PLAYER_Y,   D2          ; Player Y Position
+00001582  B441                     652      CMP     D1,         D2          ; Compare middle of Screen with Players Y Position 
+00001584  6C00 0008                653      BGE     SET_ON_GROUND           ; The Player is on the Ground Plane
+00001588  6D00 002C                654      BLT     SET_OFF_GROUND          ; The Player is off the Ground
+0000158C  4E75                     655      RTS                             ; Return to subroutine
+0000158E                           656      
+0000158E                           657  *-----------------------------------------------------------
+0000158E                           658  * Subroutine    : On Ground
+0000158E                           659  * Description   : Set the Player On Ground
+0000158E                           660  *-----------------------------------------------------------
+0000158E                           661  SET_ON_GROUND:
+0000158E  4281                     662      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+00001590  3239 00001D3C            663      MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+00001596  82FC 0002                664      DIVU    #02,        D1          ; divide by 2 for center on Y Axis
+0000159A  23C1 00001D46            665      MOVE.L  D1,         PLAYER_Y    ; Reset the Player Y Position
+000015A0  4281                     666      CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+000015A2  7200                     667      MOVE.L  #00,        D1          ; Player Velocity
+000015A4  23C1 00001D52            668      MOVE.L  D1,         PLYR_VELOCITY ; Set Player Velocity
+000015AA  23FC 00000001 00001D5A   669      MOVE.L  #GND_TRUE,  PLYR_ON_GND ; Player is on Ground
+000015B4  4E75                     670      RTS
+000015B6                           671  
+000015B6                           672  *-----------------------------------------------------------
+000015B6                           673  * Subroutine    : Off Ground
+000015B6                           674  * Description   : Set the Player Off Ground
+000015B6                           675  *-----------------------------------------------------------
+000015B6                           676  SET_OFF_GROUND:
+000015B6  23FC 00000000 00001D5A   677      MOVE.L  #GND_FALSE, PLYR_ON_GND ; Player if off Ground
+000015C0  4E75                     678      RTS                             ; Return to subroutine
+000015C2                           679  
+000015C2                           680  *-----------------------------------------------------------
+000015C2                           681  * Subroutine    : Jump
+000015C2                           682  * Description   : Perform a Jump
+000015C2                           683  *-----------------------------------------------------------
+000015C2                           684  *JUMP:
+000015C2                           685  *    CMP.L   #GND_TRUE,PLYR_ON_GND   ; Player is on the Ground ?
+000015C2                           686  *    BEQ     PERFORM_JUMP            ; Do Jump
+000015C2                           687  *    BRA     JUMP_DONE               ;
+000015C2                           688  *PERFORM_JUMP:
+000015C2                           689  *    BSR     PLAY_JUMP               ; Play jump sound
+000015C2                           690  *    MOVE.L  #PLYR_JUMP_V,PLYR_VELOCITY ; Set the players velocity to true
+000015C2                           691  *    RTS                             ; Return to subroutine
+000015C2                           692  *JUMP_DONE:
+000015C2                           693  *    RTS                             ; Return to subroutine
+000015C2                           694  *IDLE:
+000015C2                           695  *    BSR     PLAY_RUN                ; Play Run Wav
+000015C2                           696  *    RTS                             ; Return to subroutine
+000015C2                           697  
+000015C2                           698  *-----------------------------------------------------------
+000015C2                           699  * Subroutines   : Sound Load and Play
+000015C2                           700  * Description   : Initialise game sounds into memory 
+000015C2                           701  * Current Sounds are RUN, JUMP and Opps for Collision
+000015C2                           702  *-----------------------------------------------------------
+000015C2                           703  RUN_LOAD:
+000015C2  43F9 00001DAF            704      LEA     RUN_WAV,    A1          ; Load Wav File into A1
+000015C8  323C 0000                705      MOVE    #RUN_INDEX, D1          ; Assign it INDEX
+000015CC  303C 0047                706      MOVE    #71,        D0          ; Load into memory
+000015D0  4E4F                     707      TRAP    #15                     ; Trap (Perform action)
+000015D2  4E75                     708      RTS                             ; Return to subroutine
+000015D4                           709  
+000015D4                           710  PLAY_RUN:
+000015D4  323C 0000                711      MOVE    #RUN_INDEX, D1          ; Load Sound INDEX
+000015D8  303C 0048                712      MOVE    #72,        D0          ; Play Sound
+000015DC  4E4F                     713      TRAP    #15                     ; Trap (Perform action)
+000015DE  4E75                     714      RTS                             ; Return to subroutine
+000015E0                           715  
+000015E0                           716  JUMP_LOAD:
+000015E0  43F9 00001DA6            717      LEA     JUMP_WAV,   A1          ; Load Wav File into A1
+000015E6  323C 0001                718      MOVE    #JMP_INDEX, D1          ; Assign it INDEX
+000015EA  303C 0047                719      MOVE    #71,        D0          ; Load into memory
+000015EE  4E4F                     720      TRAP    #15                     ; Trap (Perform action)
+000015F0  4E75                     721      RTS                             ; Return to subroutine
+000015F2                           722  
+000015F2                           723  PLAY_JUMP:
+000015F2  323C 0001                724      MOVE    #JMP_INDEX, D1          ; Load Sound INDEX
+000015F6  303C 0048                725      MOVE    #72,        D0          ; Play Sound
+000015FA  4E4F                     726      TRAP    #15                     ; Trap (Perform action)
+000015FC  4E75                     727      RTS                             ; Return to subroutine
+000015FE                           728  
+000015FE                           729  OPPS_LOAD:
+000015FE  43F9 00001DB7            730      LEA     OPPS_WAV,   A1          ; Load Wav File into A1
+00001604  323C 0002                731      MOVE    #OPPS_INDEX,D1          ; Assign it INDEX
+00001608  303C 0047                732      MOVE    #71,        D0          ; Load into memory
+0000160C  4E4F                     733      TRAP    #15                     ; Trap (Perform action)
+0000160E  4E75                     734      RTS                             ; Return to subroutine
+00001610                           735  
+00001610                           736  PLAY_OPPS:
+00001610  323C 0002                737      MOVE    #OPPS_INDEX,D1          ; Load Sound INDEX
+00001614  303C 0048                738      MOVE    #72,        D0          ; Play Sound
+00001618  4E4F                     739      TRAP    #15                     ; Trap (Perform action)
+0000161A  4E75                     740      RTS                             ; Return to subroutine
+0000161C                           741  
+0000161C                           742  *-----------------------------------------------------------
+0000161C                           743  * Subroutine    : Draw Player
+0000161C                           744  * Description   : Draw Player Square
+0000161C                           745  *-----------------------------------------------------------
+0000161C                           746  DRAW_PLAYER:
+0000161C                           747      ; Set Pixel Colors
+0000161C  223C 00FFFFFF            748      MOVE.L  #WHITE,     D1          ; Set Background color
+00001622  103C 0050                749      MOVE.B  #80,        D0          ; Task for Background Color
+00001626  4E4F                     750      TRAP    #15                     ; Trap (Perform action)
+00001628                           751  
+00001628                           752      ; Set X, Y, Width and Height
+00001628  2239 00001D42            753      MOVE.L  PLAYER_X,   D1          ; X
+0000162E  2439 00001D46            754      MOVE.L  PLAYER_Y,   D2          ; Y
+00001634  2639 00001D42            755      MOVE.L  PLAYER_X,   D3
+0000163A  0683 00000014            756      ADD.L   #PLYR_W_INIT,   D3      ; Width
+00001640  2839 00001D46            757      MOVE.L  PLAYER_Y,   D4 
+00001646  0684 00000014            758      ADD.L   #PLYR_H_INIT,   D4      ; Height
+0000164C                           759      
+0000164C                           760      ; Draw Player
+0000164C  103C 0057                761      MOVE.B  #87,        D0          ; Draw Player
+00001650  4E4F                     762      TRAP    #15                     ; Trap (Perform action)
+00001652  4E75                     763      RTS                             ; Return to subroutine
+00001654                           764  
+00001654                           765  *-----------------------------------------------------------
+00001654                           766  * Subroutine    : Draw Enemy
+00001654                           767  * Description   : Draw Enemy Square
+00001654                           768  *-----------------------------------------------------------    
+00001654                           769  DRAW_ENEMY_1:
+00001654                           770      ; Set Pixel Colors
+00001654  223C 000000FF            771      MOVE.L  #RED,       D1          ; Set Background color
+0000165A  103C 0050                772      MOVE.B  #80,        D0          ; Task for Background Color
+0000165E  4E4F                     773      TRAP    #15                     ; Trap (Perform action)
+00001660                           774  
+00001660                           775      ; Set X, Y, Width and Height
+00001660  2239 00001D5E            776      MOVE.L  ENEMY_X_1,    D1          ; X
+00001666  2439 00001D62            777      MOVE.L  ENEMY_Y_1,    D2          ; Y
+0000166C  2639 00001D5E            778      MOVE.L  ENEMY_X_1,    D3
+00001672  0683 00000014            779      ADD.L   #ENMY_W_INIT,   D3      ; Width
+00001678  2839 00001D62            780      MOVE.L  ENEMY_Y_1,    D4 
+0000167E  0684 00000014            781      ADD.L   #ENMY_H_INIT,   D4      ; Height
+00001684                           782      
+00001684                           783      ; Draw Enemy    
+00001684  103C 0057                784      MOVE.B  #87,        D0          ; Draw Enemy
+00001688  4E4F                     785      TRAP    #15                     ; Trap (Perform action)
+0000168A  4E75                     786      RTS                             ; Return to subroutine
+0000168C                           787  
+0000168C                           788  DRAW_ENEMY_2:
+0000168C                           789      ; Set Pixel Colors
+0000168C  223C 000000FF            790      MOVE.L  #RED,       D1          ; Set Background color
+00001692  103C 0050                791      MOVE.B  #80,        D0          ; Task for Background Color
+00001696  4E4F                     792      TRAP    #15                     ; Trap (Perform action)
+00001698                           793  
+00001698                           794      ; Set X, Y, Width and Height
+00001698  2239 00001D66            795      MOVE.L  ENEMY_X_2,    D1          ; X
+0000169E  2439 00001D6A            796      MOVE.L  ENEMY_Y_2,    D2          ; Y
+000016A4  2639 00001D66            797      MOVE.L  ENEMY_X_2,    D3
+000016AA  0683 00000014            798      ADD.L   #ENMY_W_INIT,   D3      ; Width
+000016B0  2839 00001D6A            799      MOVE.L  ENEMY_Y_2,    D4 
+000016B6  0684 00000014            800      ADD.L   #ENMY_H_INIT,   D4      ; Height
+000016BC                           801      
+000016BC                           802      ; Draw Enemy    
+000016BC  103C 0057                803      MOVE.B  #87,        D0          ; Draw Enemy
+000016C0  4E4F                     804      TRAP    #15                     ; Trap (Perform action)
+000016C2  4E75                     805      RTS                             ; Return to subroutine
+000016C4                           806  
+000016C4                           807  DRAW_ENEMY_3:
+000016C4                           808      ; Set Pixel Colors
+000016C4  223C 000000FF            809      MOVE.L  #RED,       D1          ; Set Background color
+000016CA  103C 0050                810      MOVE.B  #80,        D0          ; Task for Background Color
+000016CE  4E4F                     811      TRAP    #15                     ; Trap (Perform action)
+000016D0                           812  
+000016D0                           813      ; Set X, Y, Width and Height
+000016D0  2239 00001D6E            814      MOVE.L  ENEMY_X_3,    D1          ; X
+000016D6  2439 00001D72            815      MOVE.L  ENEMY_Y_3,    D2          ; Y
+000016DC  2639 00001D6E            816      MOVE.L  ENEMY_X_3,    D3
+000016E2  0683 00000014            817      ADD.L   #ENMY_W_INIT,   D3      ; Width
+000016E8  2839 00001D72            818      MOVE.L  ENEMY_Y_3,    D4 
+000016EE  0684 00000014            819      ADD.L   #ENMY_H_INIT,   D4      ; Height
+000016F4                           820      
+000016F4                           821      ; Draw Enemy    
+000016F4  103C 0057                822      MOVE.B  #87,        D0          ; Draw Enemy
+000016F8  4E4F                     823      TRAP    #15                     ; Trap (Perform action)
+000016FA  4E75                     824      RTS                             ; Return to subroutine
+000016FC                           825  
+000016FC                           826  DRAW_ENEMY_4:
+000016FC                           827      ; Set Pixel Colors
+000016FC  223C 000000FF            828      MOVE.L  #RED,       D1          ; Set Background color
+00001702  103C 0050                829      MOVE.B  #80,        D0          ; Task for Background Color
+00001706  4E4F                     830      TRAP    #15                     ; Trap (Perform action)
+00001708                           831  
+00001708                           832      ; Set X, Y, Width and Height
+00001708  2239 00001D76            833      MOVE.L  ENEMY_X_4,    D1          ; X
+0000170E  2439 00001D7A            834      MOVE.L  ENEMY_Y_4,    D2          ; Y
+00001714  2639 00001D76            835      MOVE.L  ENEMY_X_4,    D3
+0000171A  0683 00000014            836      ADD.L   #ENMY_W_INIT,   D3      ; Width
+00001720  2839 00001D7A            837      MOVE.L  ENEMY_Y_4,    D4 
+00001726  0684 00000014            838      ADD.L   #ENMY_H_INIT,   D4      ; Height
+0000172C                           839      
+0000172C                           840      ; Draw Enemy    
+0000172C  103C 0057                841      MOVE.B  #87,        D0          ; Draw Enemy
+00001730  4E4F                     842      TRAP    #15                     ; Trap (Perform action)
+00001732  4E75                     843      RTS                             ; Return to subroutine 
+00001734                           844      
+00001734                           845  DRAW_ENEMY_5:                         ; Draw Enemy No.5
+00001734                           846      ; Set Pixel Colors
+00001734  223C 000000FF            847      MOVE.L  #RED,       D1          ; Set Background color
+0000173A  103C 0050                848      MOVE.B  #80,        D0          ; Task for Background Color
+0000173E  4E4F                     849      TRAP    #15                     ; Trap (Perform action)
+00001740                           850  
+00001740                           851      ; Set X, Y, Width and Height
+00001740  2239 00001D7E            852      MOVE.L  ENEMY_X_5,    D1          ; X
+00001746  2439 00001D82            853      MOVE.L  ENEMY_Y_5,      D2          ; Y
+0000174C  2639 00001D7E            854      MOVE.L  ENEMY_X_5,    D3
+00001752  0683 00000014            855      ADD.L   #ENMY_W_INIT,   D3      ; Width
+00001758  2839 00001D82            856      MOVE.L  ENEMY_Y_5,    D4 
+0000175E  0684 00000014            857      ADD.L   #ENMY_H_INIT,   D4      ; Height
+00001764                           858      
+00001764                           859      ; Draw Enemy    
+00001764  103C 0057                860      MOVE.B  #87,        D0          ; Draw Enemy
+00001768  4E4F                     861      TRAP    #15                     ; Trap (Perform action)
+0000176A  4E75                     862      RTS                             ; Return to subroutine
+0000176C                           863  
+0000176C                           864  DRAW_ENEMY_6:
+0000176C                           865      ; Set Pixel Colors
+0000176C  223C 000000FF            866      MOVE.L  #RED,       D1          ; Set Background color
+00001772  103C 0050                867      MOVE.B  #80,        D0          ; Task for Background Color
+00001776  4E4F                     868      TRAP    #15                     ; Trap (Perform action)
+00001778                           869  
+00001778                           870      ; Set X, Y, Width and Height
+00001778  2239 00001D86            871      MOVE.L  ENEMY_X_6,    D1          ; X
+0000177E  2439 00001D8A            872      MOVE.L  ENEMY_Y_6,    D2          ; Y
+00001784  2639 00001D86            873      MOVE.L  ENEMY_X_6,    D3
+0000178A  0683 00000014            874      ADD.L   #ENMY_W_INIT,   D3      ; Width
+00001790  2839 00001D8A            875      MOVE.L  ENEMY_Y_6,    D4 
+00001796  0684 00000014            876      ADD.L   #ENMY_H_INIT,   D4      ; Height
+0000179C                           877      
+0000179C                           878      ; Draw Enemy    
+0000179C  103C 0057                879      MOVE.B  #87,        D0          ; Draw Enemy
+000017A0  4E4F                     880      TRAP    #15                     ; Trap (Perform action)
+000017A2  4E75                     881      RTS                             ; Return to subroutine  
+000017A4                           882  
+000017A4                           883  DRAW_ENEMY_7:
+000017A4                           884      ; Set Pixel Colors
+000017A4  223C 000000FF            885      MOVE.L  #RED,       D1          ; Set Background color
+000017AA  103C 0050                886      MOVE.B  #80,        D0          ; Task for Background Color
+000017AE  4E4F                     887      TRAP    #15                     ; Trap (Perform action)
+000017B0                           888  
+000017B0                           889      ; Set X, Y, Width and Height
+000017B0  2239 00001D8E            890      MOVE.L  ENEMY_X_7,    D1          ; X
+000017B6  2439 00001D92            891      MOVE.L  ENEMY_Y_7,    D2          ; Y
+000017BC  2639 00001D8E            892      MOVE.L  ENEMY_X_7,    D3
+000017C2  0683 00000014            893      ADD.L   #ENMY_W_INIT,   D3      ; Width
+000017C8  2839 00001D92            894      MOVE.L  ENEMY_Y_7,    D4 
+000017CE  0684 00000014            895      ADD.L   #ENMY_H_INIT,   D4      ; Height
+000017D4                           896      
+000017D4                           897      ; Draw Enemy    
+000017D4  103C 0057                898      MOVE.B  #87,        D0          ; Draw Enemy
+000017D8  4E4F                     899      TRAP    #15                     ; Trap (Perform action)
+000017DA  4E75                     900      RTS                             ; Return to subroutine   
+000017DC                           901  
+000017DC                           902  DRAW_ENEMY_8:
+000017DC                           903      ; Set Pixel Colors
+000017DC  223C 000000FF            904      MOVE.L  #RED,       D1          ; Set Background color
+000017E2  103C 0050                905      MOVE.B  #80,        D0          ; Task for Background Color
+000017E6  4E4F                     906      TRAP    #15                     ; Trap (Perform action)
+000017E8                           907  
+000017E8                           908      ; Set X, Y, Width and Height
+000017E8  2239 00001D96            909      MOVE.L  ENEMY_X_8,    D1          ; X
+000017EE  2439 00001D9A            910      MOVE.L  ENEMY_Y_8,    D2          ; Y
+000017F4  2639 00001D96            911      MOVE.L  ENEMY_X_8,    D3
+000017FA  0683 00000014            912      ADD.L   #ENMY_W_INIT,   D3      ; Width
+00001800  2839 00001D9A            913      MOVE.L  ENEMY_Y_8,    D4 
+00001806  0684 00000014            914      ADD.L   #ENMY_H_INIT,   D4      ; Height
+0000180C                           915      
+0000180C                           916      ; Draw Enemy    
+0000180C  103C 0057                917      MOVE.B  #87,        D0          ; Draw Enemy
+00001810  4E4F                     918      TRAP    #15                     ; Trap (Perform action)
+00001812  4E75                     919      RTS                             ; Return to subroutine   
+00001814                           920  
+00001814                           921  DRAW_ENEMY_9:
+00001814                           922      ; Set Pixel Colors
+00001814  223C 000000FF            923      MOVE.L  #RED,       D1          ; Set Background color
+0000181A  103C 0050                924      MOVE.B  #80,        D0          ; Task for Background Color
+0000181E  4E4F                     925      TRAP    #15                     ; Trap (Perform action)
+00001820                           926  
+00001820                           927      ; Set X, Y, Width and Height
+00001820  2239 00001D9E            928      MOVE.L  ENEMY_X_9,    D1          ; X
+00001826  2439 00001DA2            929      MOVE.L  ENEMY_Y_9,    D2          ; Y
+0000182C  2639 00001D9E            930      MOVE.L  ENEMY_X_9,    D3
+00001832  0683 00000014            931      ADD.L   #ENMY_W_INIT,   D3      ; Width
+00001838  2839 00001DA2            932      MOVE.L  ENEMY_Y_9,    D4 
+0000183E  0684 00000014            933      ADD.L   #ENMY_H_INIT,   D4      ; Height
+00001844                           934      
+00001844                           935      ; Draw Enemy    
+00001844  103C 0057                936      MOVE.B  #87,        D0          ; Draw Enemy
+00001848  4E4F                     937      TRAP    #15                     ; Trap (Perform action)
+0000184A  4E75                     938      RTS                             ; Return to subroutine             
+0000184C                           939  ;----------------------------------------------------------
+0000184C                           940  * Subroutine    : Collision Check
+0000184C                           941  * Description   : Axis-Aligned Bounding Box Collision Detection
+0000184C                           942  * Algorithm checks for overlap on the 4 sides of the Player and 
+0000184C                           943  * Enemy rectangles
+0000184C                           944  * PLAYER_X <= ENEMY_X + ENEMY_W &&
+0000184C                           945  * PLAYER_X + PLAYER_W >= ENEMY_X &&
+0000184C                           946  * PLAYER_Y <= ENEMY_Y + ENEMY_H &&
+0000184C                           947  * PLAYER_H + PLAYER_Y >= ENEMY_Y
+0000184C                           948  *-----------------------------------------------------------
+0000184C                           949  CHECK_COLLISIONS_1:
+0000184C  4281                     950      CLR.L   D1                      ; Clear D1
+0000184E  4282                     951      CLR.L   D2                      ; Clear D2
+00001850                           952  
+00001850                           953  PLAYER_X_LTE_TO_ENEMY_X_1_PLUS_W:
+00001850  2239 00001D42            954      MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+00001856  2439 00001D5E            955      MOVE.L  ENEMY_X_1,    D2          ; Move Enemy X to D2
+0000185C  D4B8 0014                956      ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+00001860  B481                     957      CMP.L   D1,         D2          ; Do the Overlap ?
+00001862  6F00 0006                958      BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_1  ; Less than or Equal ?
+00001866  6000 004A                959      BRA     COLLISION_CHECK_DONE_1    ; If not no collision
+0000186A                           960      
+0000186A                           961  PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_1:     ; Check player is not  
+0000186A  D2B8 0014                962      ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+0000186E  2439 00001D5E            963      MOVE.L  ENEMY_X_1,    D2          ; Move Enemy X to D2
+00001874  B481                     964      CMP.L   D1,         D2          ; Do they OverLap ?
+00001876  6C00 0006                965      BGE     PLAYER_Y_LTE_TO_ENEMY_Y_1_PLUS_H  ; Less than or Equal
+0000187A  6000 0036                966      BRA     COLLISION_CHECK_DONE_1    ; If not no collision
+0000187E                           967     
+0000187E                           968  PLAYER_Y_LTE_TO_ENEMY_Y_1_PLUS_H:     
+0000187E  2239 00001D46            969      MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+00001884  2439 00001D62            970      MOVE.L  ENEMY_Y_1,    D2          ; Move Enemy Y to D2
+0000188A  D4B8 0014                971      ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+0000188E  B481                     972      CMP.L   D1,         D2          ; Do they Overlap ?
+00001890  6F00 0006                973      BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_1  ; Less than or Equal
+00001894  6000 001C                974      BRA     COLLISION_CHECK_DONE_1    ; If not no collision 
+00001898                           975      
+00001898                           976  PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_1:     ; Less than or Equal ?
+00001898  2239 00001D46            977      MOVE.L  PLAYER_Y,   D1
+0000189E  D2B8 0014                978      ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+000018A2  2439 00001D62            979      MOVE.L  ENEMY_Y_1,    D2          ; Move Enemy Height to D2  
+000018A8  B481                     980      CMP.L   D1,         D2          ; Do they OverLap ?
+000018AA  6C00 03C6                981      BGE     COLLISION              ; Collision !
+000018AE  6000 0002                982      BRA     COLLISION_CHECK_DONE_1    ; If not no collision
+000018B2                           983      
+000018B2                           984  COLLISION_CHECK_DONE_1:               ; No Collision Update points
+000018B2  5281                     985      ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+000018B4  D2B9 00001D4A            986      ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+000018BA  23C1 00001D4A            987      MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+000018C0  4E75                     988      RTS                             ; Return to subroutine
+000018C2                           989  
+000018C2                           990  *--------------------------------------------------------------------------------- 
+000018C2                           991  
+000018C2                           992  CHECK_COLLISIONS_2:
+000018C2  4281                     993      CLR.L   D1                      ; Clear D1
+000018C4  4282                     994      CLR.L   D2                      ; Clear D2
+000018C6                           995  
+000018C6                           996  PLAYER_X_LTE_TO_ENEMY_X_2_PLUS_W:
+000018C6  2239 00001D42            997      MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+000018CC  2439 00001D66            998      MOVE.L  ENEMY_X_2,    D2          ; Move Enemy X to D2
+000018D2  D4B8 0014                999      ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+000018D6  B481                    1000      CMP.L   D1,         D2          ; Do the Overlap ?
+000018D8  6F00 0006               1001      BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_2  ; Less than or Equal ?
+000018DC  6000 004A               1002      BRA     COLLISION_CHECK_DONE_2    ; If not no collision
+000018E0                          1003      
+000018E0                          1004  PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_2:     ; Check player is not  
+000018E0  D2B8 0014               1005      ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+000018E4  2439 00001D66           1006      MOVE.L  ENEMY_X_2,    D2          ; Move Enemy X to D2
+000018EA  B481                    1007      CMP.L   D1,         D2          ; Do they OverLap ?
+000018EC  6C00 0006               1008      BGE     PLAYER_Y_LTE_TO_ENEMY_Y_2_PLUS_H  ; Less than or Equal
+000018F0  6000 0036               1009      BRA     COLLISION_CHECK_DONE_2    ; If not no collision
+000018F4                          1010     
+000018F4                          1011  PLAYER_Y_LTE_TO_ENEMY_Y_2_PLUS_H:     
+000018F4  2239 00001D46           1012      MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+000018FA  2439 00001D6A           1013      MOVE.L  ENEMY_Y_2,    D2          ; Move Enemy Y to D2
+00001900  D4B8 0014               1014      ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+00001904  B481                    1015      CMP.L   D1,         D2          ; Do they Overlap ?
+00001906  6F00 0006               1016      BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_2  ; Less than or Equal
+0000190A  6000 001C               1017      BRA     COLLISION_CHECK_DONE_2    ; If not no collision 
+0000190E                          1018      
+0000190E                          1019  PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_2:     ; Less than or Equal ?
+0000190E  2239 00001D46           1020      MOVE.L  PLAYER_Y,   D1
+00001914  D2B8 0014               1021      ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+00001918  2439 00001D6A           1022      MOVE.L  ENEMY_Y_2,    D2          ; Move Enemy Height to D2  
+0000191E  B481                    1023      CMP.L   D1,         D2          ; Do they OverLap ?
+00001920  6C00 0350               1024      BGE     COLLISION              ; Collision !
+00001924  6000 0002               1025      BRA     COLLISION_CHECK_DONE_2    ; If not no collision
+00001928                          1026      
+00001928                          1027  COLLISION_CHECK_DONE_2:               ; No Collision Update points
+00001928  5281                    1028      ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+0000192A  D2B9 00001D4A           1029      ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+00001930  23C1 00001D4A           1030      MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+00001936  4E75                    1031      RTS                             ; Return to subroutine
+00001938                          1032  
+00001938                          1033  *--------------------------------------------------------------------------------- 
+00001938                          1034  
+00001938                          1035  CHECK_COLLISIONS_3:
+00001938  4281                    1036      CLR.L   D1                      ; Clear D1
+0000193A  4282                    1037      CLR.L   D2                      ; Clear D2
+0000193C                          1038  
+0000193C                          1039  PLAYER_X_LTE_TO_ENEMY_X_3_PLUS_W:
+0000193C  2239 00001D42           1040      MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+00001942  2439 00001D6E           1041      MOVE.L  ENEMY_X_3,    D2          ; Move Enemy X to D2
+00001948  D4B8 0014               1042      ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+0000194C  B481                    1043      CMP.L   D1,         D2          ; Do the Overlap ?
+0000194E  6F00 0006               1044      BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_3  ; Less than or Equal ?
+00001952  6000 004A               1045      BRA     COLLISION_CHECK_DONE_3    ; If not no collision
+00001956                          1046      
+00001956                          1047  PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_3:     ; Check player is not  
+00001956  D2B8 0014               1048      ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+0000195A  2439 00001D6E           1049      MOVE.L  ENEMY_X_3,    D2          ; Move Enemy X to D2
+00001960  B481                    1050      CMP.L   D1,         D2          ; Do they OverLap ?
+00001962  6C00 0006               1051      BGE     PLAYER_Y_LTE_TO_ENEMY_Y_3_PLUS_H  ; Less than or Equal
+00001966  6000 0036               1052      BRA     COLLISION_CHECK_DONE_3    ; If not no collision
+0000196A                          1053     
+0000196A                          1054  PLAYER_Y_LTE_TO_ENEMY_Y_3_PLUS_H:     
+0000196A  2239 00001D46           1055      MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+00001970  2439 00001D72           1056      MOVE.L  ENEMY_Y_3,    D2          ; Move Enemy Y to D2
+00001976  D4B8 0014               1057      ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+0000197A  B481                    1058      CMP.L   D1,         D2          ; Do they Overlap ?
+0000197C  6F00 0006               1059      BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_3  ; Less than or Equal
+00001980  6000 001C               1060      BRA     COLLISION_CHECK_DONE_3    ; If not no collision 
+00001984                          1061      
+00001984                          1062  PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_3:     ; Less than or Equal ?
+00001984  2239 00001D46           1063      MOVE.L  PLAYER_Y,   D1
+0000198A  D2B8 0014               1064      ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+0000198E  2439 00001D72           1065      MOVE.L  ENEMY_Y_3,    D2          ; Move Enemy Height to D2  
+00001994  B481                    1066      CMP.L   D1,         D2          ; Do they OverLap ?
+00001996  6C00 02DA               1067      BGE     COLLISION              ; Collision !
+0000199A  6000 0002               1068      BRA     COLLISION_CHECK_DONE_3    ; If not no collision
+0000199E                          1069      
+0000199E                          1070  COLLISION_CHECK_DONE_3:               ; No Collision Update points
+0000199E  5281                    1071      ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+000019A0  D2B9 00001D4A           1072      ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+000019A6  23C1 00001D4A           1073      MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+000019AC  4E75                    1074      RTS                             ; Return to subroutine
+000019AE                          1075  
+000019AE                          1076  *---------------------------------------------------------------------------------
+000019AE                          1077  
+000019AE                          1078  CHECK_COLLISIONS_4:
+000019AE  4281                    1079      CLR.L   D1                      ; Clear D1
+000019B0  4282                    1080      CLR.L   D2                      ; Clear D2
+000019B2                          1081  
+000019B2                          1082  PLAYER_X_LTE_TO_ENEMY_X_4_PLUS_W:
+000019B2  2239 00001D42           1083      MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+000019B8  2439 00001D76           1084      MOVE.L  ENEMY_X_4,    D2          ; Move Enemy X to D2
+000019BE  D4B8 0014               1085      ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+000019C2  B481                    1086      CMP.L   D1,         D2          ; Do the Overlap ?
+000019C4  6F00 0006               1087      BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_4  ; Less than or Equal ?
+000019C8  6000 004A               1088      BRA     COLLISION_CHECK_DONE_4    ; If not no collision
+000019CC                          1089      
+000019CC                          1090  PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_4:     ; Check player is not  
+000019CC  D2B8 0014               1091      ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+000019D0  2439 00001D76           1092      MOVE.L  ENEMY_X_4,    D2          ; Move Enemy X to D2
+000019D6  B481                    1093      CMP.L   D1,         D2          ; Do they OverLap ?
+000019D8  6C00 0006               1094      BGE     PLAYER_Y_LTE_TO_ENEMY_Y_4_PLUS_H  ; Less than or Equal
+000019DC  6000 0036               1095      BRA     COLLISION_CHECK_DONE_4    ; If not no collision
+000019E0                          1096     
+000019E0                          1097  PLAYER_Y_LTE_TO_ENEMY_Y_4_PLUS_H:     
+000019E0  2239 00001D46           1098      MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+000019E6  2439 00001D7A           1099      MOVE.L  ENEMY_Y_4,    D2          ; Move Enemy Y to D2
+000019EC  D4B8 0014               1100      ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+000019F0  B481                    1101      CMP.L   D1,         D2          ; Do they Overlap ?
+000019F2  6F00 0006               1102      BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_4  ; Less than or Equal
+000019F6  6000 001C               1103      BRA     COLLISION_CHECK_DONE_4    ; If not no collision 
+000019FA                          1104      
+000019FA                          1105  PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_4:     ; Less than or Equal ?
+000019FA  2239 00001D46           1106      MOVE.L  PLAYER_Y,   D1
+00001A00  D2B8 0014               1107      ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+00001A04  2439 00001D7A           1108      MOVE.L  ENEMY_Y_4,    D2          ; Move Enemy Height to D2  
+00001A0A  B481                    1109      CMP.L   D1,         D2          ; Do they OverLap ?
+00001A0C  6C00 0264               1110      BGE     COLLISION              ; Collision !
+00001A10  6000 0002               1111      BRA     COLLISION_CHECK_DONE_4    ; If not no collision
+00001A14                          1112      
+00001A14                          1113  COLLISION_CHECK_DONE_4:               ; No Collision Update points
+00001A14  5281                    1114      ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+00001A16  D2B9 00001D4A           1115      ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+00001A1C  23C1 00001D4A           1116      MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+00001A22  4E75                    1117      RTS                             ; Return to subroutine
+00001A24                          1118  
+00001A24                          1119  *---------------------------------------------------------------------------------
+00001A24                          1120  CHECK_COLLISIONS_5:
+00001A24  4281                    1121      CLR.L   D1                      ; Clear D1
+00001A26  4282                    1122      CLR.L   D2                      ; Clear D2
+00001A28                          1123      
+00001A28                          1124  PLAYER_X_LTE_TO_ENEMY_X_5_PLUS_W:
+00001A28  2239 00001D42           1125      MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+00001A2E  2439 00001D7E           1126      MOVE.L  ENEMY_X_5,    D2          ; Move Enemy X to D2
+00001A34  D4B8 0014               1127      ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+00001A38  B481                    1128      CMP.L   D1,         D2          ; Do the Overlap ?
+00001A3A  6F00 0006               1129      BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_5  ; Less than or Equal ?
+00001A3E  6000 004A               1130      BRA     COLLISION_CHECK_DONE_5    ; If not no collision
+00001A42                          1131      
+00001A42                          1132  PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_5:     ; Check player is not  
+00001A42  D2B8 0014               1133      ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+00001A46  2439 00001D7E           1134      MOVE.L  ENEMY_X_5,    D2          ; Move Enemy X to D2
+00001A4C  B481                    1135      CMP.L   D1,         D2          ; Do they OverLap ?
+00001A4E  6C00 0006               1136      BGE     PLAYER_Y_LTE_TO_ENEMY_Y_5_PLUS_H  ; Less than or Equal
+00001A52  6000 0036               1137      BRA     COLLISION_CHECK_DONE_5    ; If not no collision
+00001A56                          1138     
+00001A56                          1139  PLAYER_Y_LTE_TO_ENEMY_Y_5_PLUS_H:     
+00001A56  2239 00001D46           1140      MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+00001A5C  2439 00001D82           1141      MOVE.L  ENEMY_Y_5,    D2          ; Move Enemy Y to D2
+00001A62  D4B8 0014               1142      ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+00001A66  B481                    1143      CMP.L   D1,         D2          ; Do they Overlap ?
+00001A68  6F00 0006               1144      BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_5  ; Less than or Equal
+00001A6C  6000 001C               1145      BRA     COLLISION_CHECK_DONE_5    ; If not no collision 
+00001A70                          1146      
+00001A70                          1147  PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_5:     ; Less than or Equal ?
+00001A70  2239 00001D46           1148      MOVE.L  PLAYER_Y,   D1
+00001A76  D2B8 0014               1149      ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+00001A7A  2439 00001D82           1150      MOVE.L  ENEMY_Y_5,    D2          ; Move Enemy Height to D2  
+00001A80  B481                    1151      CMP.L   D1,         D2          ; Do they OverLap ?
+00001A82  6C00 01EE               1152      BGE     COLLISION               ; Collision !
+00001A86  6000 0002               1153      BRA     COLLISION_CHECK_DONE_5    ; If not no collision
+00001A8A                          1154  
+00001A8A                          1155  COLLISION_CHECK_DONE_5:               ; No Collision Update points
+00001A8A  5281                    1156      ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+00001A8C  D2B9 00001D4A           1157      ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+00001A92  23C1 00001D4A           1158      MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+00001A98  4E75                    1159      RTS                             ; Return to subroutine
+00001A9A                          1160  *----------------------------------------------------------------------------------
+00001A9A                          1161  CHECK_COLLISIONS_6:
+00001A9A  4281                    1162      CLR.L   D1                      ; Clear D1
+00001A9C  4282                    1163      CLR.L   D2                      ; Clear D2
+00001A9E                          1164      
+00001A9E                          1165  PLAYER_X_LTE_TO_ENEMY_X_6_PLUS_W:
+00001A9E  2239 00001D42           1166      MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+00001AA4  2439 00001D86           1167      MOVE.L  ENEMY_X_6,    D2          ; Move Enemy X to D2
+00001AAA  D4B8 0014               1168      ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+00001AAE  B481                    1169      CMP.L   D1,         D2          ; Do the Overlap ?
+00001AB0  6F00 0006               1170      BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_6  ; Less than or Equal ?
+00001AB4  6000 004A               1171      BRA     COLLISION_CHECK_DONE_6    ; If not no collision
+00001AB8                          1172      
+00001AB8                          1173  PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_6:     ; Check player is not  
+00001AB8  D2B8 0014               1174      ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+00001ABC  2439 00001D86           1175      MOVE.L  ENEMY_X_6,    D2          ; Move Enemy X to D2
+00001AC2  B481                    1176      CMP.L   D1,         D2          ; Do they OverLap ?
+00001AC4  6C00 0006               1177      BGE     PLAYER_Y_LTE_TO_ENEMY_Y_6_PLUS_H  ; Less than or Equal
+00001AC8  6000 0036               1178      BRA     COLLISION_CHECK_DONE_6    ; If not no collision
+00001ACC                          1179     
+00001ACC                          1180  PLAYER_Y_LTE_TO_ENEMY_Y_6_PLUS_H:     
+00001ACC  2239 00001D46           1181      MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+00001AD2  2439 00001D8A           1182      MOVE.L  ENEMY_Y_6,    D2          ; Move Enemy Y to D2
+00001AD8  D4B8 0014               1183      ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+00001ADC  B481                    1184      CMP.L   D1,         D2          ; Do they Overlap ?
+00001ADE  6F00 0006               1185      BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_6  ; Less than or Equal
+00001AE2  6000 001C               1186      BRA     COLLISION_CHECK_DONE_6    ; If not no collision 
+00001AE6                          1187      
+00001AE6                          1188  PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_6:     ; Less than or Equal ?
+00001AE6  2239 00001D46           1189      MOVE.L  PLAYER_Y,   D1
+00001AEC  D2B8 0014               1190      ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+00001AF0  2439 00001D8A           1191      MOVE.L  ENEMY_Y_6,    D2          ; Move Enemy Height to D2  
+00001AF6  B481                    1192      CMP.L   D1,         D2          ; Do they OverLap ?
+00001AF8  6C00 0178               1193      BGE     COLLISION               ; Collision !
+00001AFC  6000 0002               1194      BRA     COLLISION_CHECK_DONE_6    ; If not no collision
+00001B00                          1195  
+00001B00                          1196  COLLISION_CHECK_DONE_6:               ; No Collision Update points
+00001B00  5281                    1197      ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+00001B02  D2B9 00001D4A           1198      ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+00001B08  23C1 00001D4A           1199      MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+00001B0E  4E75                    1200      RTS                             ; Return to subroutine
+00001B10                          1201  
+00001B10                          1202  *---------------------------------------------------------------------------------
+00001B10                          1203  CHECK_COLLISIONS_7:
+00001B10  4281                    1204      CLR.L   D1                      ; Clear D1
+00001B12  4282                    1205      CLR.L   D2                      ; Clear D2
+00001B14                          1206      
+00001B14                          1207  PLAYER_X_LTE_TO_ENEMY_X_7_PLUS_W:
+00001B14  2239 00001D42           1208      MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+00001B1A  2439 00001D8E           1209      MOVE.L  ENEMY_X_7,    D2          ; Move Enemy X to D2
+00001B20  D4B8 0014               1210      ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+00001B24  B481                    1211      CMP.L   D1,         D2          ; Do the Overlap ?
+00001B26  6F00 0006               1212      BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_7  ; Less than or Equal ?
+00001B2A  6000 004A               1213      BRA     COLLISION_CHECK_DONE_7    ; If not no collision
+00001B2E                          1214      
+00001B2E                          1215  PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_7:     ; Check player is not  
+00001B2E  D2B8 0014               1216      ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+00001B32  2439 00001D8E           1217      MOVE.L  ENEMY_X_7,    D2          ; Move Enemy X to D2
+00001B38  B481                    1218      CMP.L   D1,         D2          ; Do they OverLap ?
+00001B3A  6C00 0006               1219      BGE     PLAYER_Y_LTE_TO_ENEMY_Y_7_PLUS_H  ; Less than or Equal
+00001B3E  6000 0036               1220      BRA     COLLISION_CHECK_DONE_7    ; If not no collision
+00001B42                          1221     
+00001B42                          1222  PLAYER_Y_LTE_TO_ENEMY_Y_7_PLUS_H:     
+00001B42  2239 00001D46           1223      MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+00001B48  2439 00001D92           1224      MOVE.L  ENEMY_Y_7,    D2          ; Move Enemy Y to D2
+00001B4E  D4B8 0014               1225      ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+00001B52  B481                    1226      CMP.L   D1,         D2          ; Do they Overlap ?
+00001B54  6F00 0006               1227      BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_7  ; Less than or Equal
+00001B58  6000 001C               1228      BRA     COLLISION_CHECK_DONE_7    ; If not no collision 
+00001B5C                          1229      
+00001B5C                          1230  PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_7:     ; Less than or Equal ?
+00001B5C  2239 00001D46           1231      MOVE.L  PLAYER_Y,   D1
+00001B62  D2B8 0014               1232      ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+00001B66  2439 00001D92           1233      MOVE.L  ENEMY_Y_7,    D2          ; Move Enemy Height to D2  
+00001B6C  B481                    1234      CMP.L   D1,         D2          ; Do they OverLap ?
+00001B6E  6C00 0102               1235      BGE     COLLISION               ; Collision !
+00001B72  6000 0002               1236      BRA     COLLISION_CHECK_DONE_7    ; If not no collision
+00001B76                          1237  
+00001B76                          1238  COLLISION_CHECK_DONE_7:               ; No Collision Update points
+00001B76  5281                    1239      ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+00001B78  D2B9 00001D4A           1240      ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+00001B7E  23C1 00001D4A           1241      MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+00001B84  4E75                    1242      RTS                             ; Return to subroutine
+00001B86                          1243  
+00001B86                          1244  *---------------------------------------------------------------------------------
+00001B86                          1245  CHECK_COLLISIONS_8:
+00001B86  4281                    1246      CLR.L   D1                      ; Clear D1
+00001B88  4282                    1247      CLR.L   D2                      ; Clear D2
+00001B8A                          1248      
+00001B8A                          1249  PLAYER_X_LTE_TO_ENEMY_X_8_PLUS_W:
+00001B8A  2239 00001D42           1250      MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+00001B90  2439 00001D96           1251      MOVE.L  ENEMY_X_8,    D2          ; Move Enemy X to D2
+00001B96  D4B8 0014               1252      ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+00001B9A  B481                    1253      CMP.L   D1,         D2          ; Do the Overlap ?
+00001B9C  6F00 0006               1254      BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_8  ; Less than or Equal ?
+00001BA0  6000 004A               1255      BRA     COLLISION_CHECK_DONE_8    ; If not no collision
+00001BA4                          1256      
+00001BA4                          1257  PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_8:     ; Check player is not  
+00001BA4  D2B8 0014               1258      ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+00001BA8  2439 00001D96           1259      MOVE.L  ENEMY_X_8,    D2          ; Move Enemy X to D2
+00001BAE  B481                    1260      CMP.L   D1,         D2          ; Do they OverLap ?
+00001BB0  6C00 0006               1261      BGE     PLAYER_Y_LTE_TO_ENEMY_Y_8_PLUS_H  ; Less than or Equal
+00001BB4  6000 0036               1262      BRA     COLLISION_CHECK_DONE_8    ; If not no collision
+00001BB8                          1263     
+00001BB8                          1264  PLAYER_Y_LTE_TO_ENEMY_Y_8_PLUS_H:     
+00001BB8  2239 00001D46           1265      MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+00001BBE  2439 00001D9A           1266      MOVE.L  ENEMY_Y_8,    D2          ; Move Enemy Y to D2
+00001BC4  D4B8 0014               1267      ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+00001BC8  B481                    1268      CMP.L   D1,         D2          ; Do they Overlap ?
+00001BCA  6F00 0006               1269      BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_8  ; Less than or Equal
+00001BCE  6000 001C               1270      BRA     COLLISION_CHECK_DONE_8    ; If not no collision 
+00001BD2                          1271      
+00001BD2                          1272  PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_8:     ; Less than or Equal ?
+00001BD2  2239 00001D46           1273      MOVE.L  PLAYER_Y,   D1
+00001BD8  D2B8 0014               1274      ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+00001BDC  2439 00001D9A           1275      MOVE.L  ENEMY_Y_8,    D2          ; Move Enemy Height to D2  
+00001BE2  B481                    1276      CMP.L   D1,         D2          ; Do they OverLap ?
+00001BE4  6C00 008C               1277      BGE     COLLISION               ; Collision !
+00001BE8  6000 0002               1278      BRA     COLLISION_CHECK_DONE_8    ; If not no collision
+00001BEC                          1279  
+00001BEC                          1280  COLLISION_CHECK_DONE_8:               ; No Collision Update points
+00001BEC  5281                    1281      ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+00001BEE  D2B9 00001D4A           1282      ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+00001BF4  23C1 00001D4A           1283      MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+00001BFA  4E75                    1284      RTS                             ; Return to subroutine
+00001BFC                          1285  
+00001BFC                          1286  *---------------------------------------------------------------------------------
+00001BFC                          1287  CHECK_COLLISIONS_9:
+00001BFC  4281                    1288      CLR.L   D1                      ; Clear D1
+00001BFE  4282                    1289      CLR.L   D2                      ; Clear D2
+00001C00                          1290      
+00001C00                          1291  PLAYER_X_LTE_TO_ENEMY_X_9_PLUS_W:
+00001C00  2239 00001D42           1292      MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+00001C06  2439 00001D9E           1293      MOVE.L  ENEMY_X_9,    D2          ; Move Enemy X to D2
+00001C0C  D4B8 0014               1294      ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
+00001C10  B481                    1295      CMP.L   D1,         D2          ; Do the Overlap ?
+00001C12  6F00 0006               1296      BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_9  ; Less than or Equal ?
+00001C16  6000 004A               1297      BRA     COLLISION_CHECK_DONE_9    ; If not no collision
+00001C1A                          1298      
+00001C1A                          1299  PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_9:     ; Check player is not  
+00001C1A  D2B8 0014               1300      ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+00001C1E  2439 00001D9E           1301      MOVE.L  ENEMY_X_9,    D2          ; Move Enemy X to D2
+00001C24  B481                    1302      CMP.L   D1,         D2          ; Do they OverLap ?
+00001C26  6C00 0006               1303      BGE     PLAYER_Y_LTE_TO_ENEMY_Y_9_PLUS_H  ; Less than or Equal
+00001C2A  6000 0036               1304      BRA     COLLISION_CHECK_DONE_9    ; If not no collision
+00001C2E                          1305     
+00001C2E                          1306  PLAYER_Y_LTE_TO_ENEMY_Y_9_PLUS_H:     
+00001C2E  2239 00001D46           1307      MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+00001C34  2439 00001DA2           1308      MOVE.L  ENEMY_Y_9,    D2          ; Move Enemy Y to D2
+00001C3A  D4B8 0014               1309      ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
+00001C3E  B481                    1310      CMP.L   D1,         D2          ; Do they Overlap ?
+00001C40  6F00 0006               1311      BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_9  ; Less than or Equal
+00001C44  6000 001C               1312      BRA     COLLISION_CHECK_DONE_9    ; If not no collision 
+00001C48                          1313      
+00001C48                          1314  PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_9:     ; Less than or Equal ?
+00001C48  2239 00001D46           1315      MOVE.L  PLAYER_Y,   D1
+00001C4E  D2B8 0014               1316      ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+00001C52  2439 00001DA2           1317      MOVE.L  ENEMY_Y_9,    D2          ; Move Enemy Height to D2  
+00001C58  B481                    1318      CMP.L   D1,         D2          ; Do they OverLap ?
+00001C5A  6C00 0016               1319      BGE     COLLISION               ; Collision !
+00001C5E  6000 0002               1320      BRA     COLLISION_CHECK_DONE_9    ; If not no collision
+00001C62                          1321  
+00001C62                          1322  COLLISION_CHECK_DONE_9:               ; No Collision Update points
+00001C62  5281                    1323      ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+00001C64  D2B9 00001D4A           1324      ADD.L   PLAYER_SCORE,D1         ; Add to current player score
+00001C6A  23C1 00001D4A           1325      MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+00001C70  4E75                    1326      RTS                             ; Return to subroutine
+00001C72                          1327  
+00001C72                          1328  *---------------------------------------------------------------------------------
+00001C72                          1329  
+00001C72                          1330  COLLISION:
+00001C72  6100 F99C               1331      BSR     PLAY_OPPS               ; Play Opps Wav
+00001C76  04B9 00000014 00001D4E  1332      SUB.L   #20, HEALTH_VALUE
+00001C80                          1333      IF.L    (HEALTH_VALUE) <EQ> #0 THEN
+00001C8E                          1334      
+00001C8E  103C 000B               1335              MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+00001C92  323C FF00               1336              MOVE.W  #$FF00,     D1          ; Clear contents
+00001C96  4E4F                    1337              TRAP    #15                     ; Trap (Perform action)
+00001C98                          1338              
+00001C98  6100 F7F4               1339              BSR     DRAW_PLYR_DATA          ; Draw Draw Score, HUD, Player X and Y
+00001C9C  6100 F97E               1340              BSR     DRAW_PLAYER             ; Draw Player
+00001CA0  6100 F9B2               1341              BSR     DRAW_ENEMY_1
+00001CA4  6100 F9E6               1342              BSR     DRAW_ENEMY_2
+00001CA8  6100 FA1A               1343              BSR     DRAW_ENEMY_3
+00001CAC  6100 FA4E               1344              BSR     DRAW_ENEMY_4
+00001CB0  6100 FA82               1345              BSR     DRAW_ENEMY_5  
+00001CB4  6100 FAB6               1346              BSR     DRAW_ENEMY_6
+00001CB8  6100 FAEA               1347              BSR     DRAW_ENEMY_7
+00001CBC  6100 FB1E               1348              BSR     DRAW_ENEMY_8
+00001CC0  6100 FB52               1349              BSR     DRAW_ENEMY_9
+00001CC4                          1350  
+00001CC4  103C 005E               1351              MOVE.B  #94,        D0
+00001CC8  4E4F                    1352              TRAP    #15
+00001CCA                          1353              
+00001CCA  6100 0004               1354              BSR EXIT
+00001CCE                          1355      ENDI
+00001CCE  4E75                    1356      RTS                             ; Return to subroutine    
+00001CD0                          1357  *-----------------------------------------------------------
+00001CD0                          1358  * Subroutine    : EXIT
+00001CD0                          1359  * Description   : Exit message and End Game
+00001CD0                          1360  *-----------------------------------------------------------
+00001CD0                          1361  EXIT:
+00001CD0                          1362      ; Show if Exiting is Running
+00001CD0  103C 000B               1363      MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+00001CD4  323C 4004               1364      MOVE.W  #$4004,     D1          ; Col 40, Row 1
+00001CD8  4E4F                    1365      TRAP    #15                     ; Trap (Perform action)
+00001CDA  43F9 00001D2D           1366      LEA     EXIT_MSG,   A1          ; Exit
+00001CE0  303C 000D               1367      MOVE    #13,        D0          ; No Line feed
+00001CE4  4E4F                    1368      TRAP    #15                     ; Trap (Perform action)
+00001CE6  103C 0009               1369      MOVE.B  #TC_EXIT,   D0          ; Exit Code
+00001CEA  4E4F                    1370      TRAP    #15                     ; Trap (Perform action)
+00001CEC  FFFF FFFF               1371      SIMHALT
+00001CF0                          1372  
+00001CF0                          1373  *-----------------------------------------------------------
+00001CF0                          1374  * Section       : Messages
+00001CF0                          1375  * Description   : Messages to Print on Console, names should be
+00001CF0                          1376  * self documenting
+00001CF0                          1377  *-----------------------------------------------------------
+00001CF0= 53 63 6F 72 65 20 ...   1378  SCORE_MSG       DC.B    'Score : ', 0       ; Score Message
+00001CF9= 4B 65 79 43 6F 64 ...   1379  KEYCODE_MSG     DC.B    'KeyCode : ', 0     ; Keycode Message
+00001D04= 4A 75 6D 70 2E 2E ...   1380  JUMP_MSG        DC.B    'Jump....', 0       ; Jump Message
+00001D0D                          1381  ;---------------------------------------------------------
+00001D0D= 55 70 2E 2E 2E 2E 00    1382  UP_MSG          DC.B    'Up....', 0       ; Up Message
+00001D14= 44 6F 77 6E 2E 2E ...   1383  DOWN_MSG        DC.B    'Down....', 0       ; Down Message
+00001D1D                          1384  ;-----------------------------------------------------------
+00001D1D= 58 3A 00                1385  X_MSG           DC.B    'X:', 0             ; X Position Message
+00001D20= 59 3A 00                1386  Y_MSG           DC.B    'Y:', 0             ; Y Position Message
+00001D23= 48 65 61 6C 74 68 ...   1387  HEALTH_MSG      DC.B    'Health : ',0       ; Health message
+00001D2D                          1388  
+00001D2D                          1389  
+00001D2D= 45 78 69 74 69 6E ...   1390  EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
+00001D39                          1391  
+00001D39                          1392  *-----------------------------------------------------------
+00001D39                          1393  * Section       : Graphic Colors
+00001D39                          1394  * Description   : Screen Pixel Color
+00001D39                          1395  *-----------------------------------------------------------
+00001D39  =00FFFFFF               1396  WHITE           EQU     $00FFFFFF
+00001D39  =000000FF               1397  RED             EQU     $000000FF
+00001D39                          1398  
+00001D39                          1399  *-----------------------------------------------------------
+00001D39                          1400  * Section       : Screen Size
+00001D39                          1401  * Description   : Screen Width and Height
+00001D39                          1402  *-----------------------------------------------------------
+00001D3A                          1403  SCREEN_W        DS.W    01  ; Reserve Space for Screen Width
+00001D3C                          1404  SCREEN_H        DS.W    01  ; Reserve Space for Screen Height
+00001D3E                          1405  
+00001D3E                          1406  *-----------------------------------------------------------
+00001D3E                          1407  * Section       : Keyboard Input
+00001D3E                          1408  * Description   : Used for storing Keypresses
+00001D3E                          1409  *-----------------------------------------------------------
+00001D3E                          1410  CURRENT_KEY     DS.L    01  ; Reserve Space for Current Key Pressed
+00001D42                          1411  
+00001D42                          1412  *-----------------------------------------------------------
+00001D42                          1413  * Section       : Character Positions
+00001D42                          1414  * Description   : Player and Enemy Position Memory Locations
+00001D42                          1415  *-----------------------------------------------------------
+00001D42                          1416  PLAYER_X        DS.L    01  ; Reserve Space for Player X Position
+00001D46                          1417  PLAYER_Y        DS.L    01  ; Reserve Space for Player Y Position
+00001D4A                          1418  PLAYER_SCORE    DS.L    01  ; Reserve Space for Player Score
+00001D4E                          1419  HEALTH_VALUE    DS.L    01  ; Reserve Space for Health Value
+00001D52                          1420  
+00001D52                          1421  PLYR_VELOCITY   DS.L    01  ; Reserve Space for Player Velocity
+00001D56                          1422  PLYR_GRAVITY    DS.L    01  ; Reserve Space for Player Gravity
+00001D5A                          1423  PLYR_ON_GND     DS.L    01  ; Reserve Space for Player on Ground
+00001D5E                          1424  
+00001D5E                          1425  ENEMY_X_1       DS.L    01  ; Reserve Space for Enemy X Position
+00001D62                          1426  ENEMY_Y_1       DS.L    01  ; Reserve Space for Enemy Y Position
+00001D66                          1427  
+00001D66                          1428  ENEMY_X_2       DS.L    01  ; Reserve Space for Enemy X Position
+00001D6A                          1429  ENEMY_Y_2       DS.L    01  ; Reserve Space for Enemy Y Position
+00001D6E                          1430  
+00001D6E                          1431  ENEMY_X_3       DS.L    01  ; Reserve Space for Enemy X Position
+00001D72                          1432  ENEMY_Y_3       DS.L    01  ; Reserve Space for Enemy Y Position
+00001D76                          1433  
+00001D76                          1434  ENEMY_X_4       DS.L    01  ; Reserve Space for Enemy X Position
+00001D7A                          1435  ENEMY_Y_4       DS.L    01  ; Reserve Space for Enemy Y Position
+00001D7E                          1436  
+00001D7E                          1437  ENEMY_X_5       DS.L    01  ; Reserve Space for Enemy X Position
+00001D82                          1438  ENEMY_Y_5       DS.L    01  ; Reserve Space for Enemy Y Position
+00001D86                          1439  
+00001D86                          1440  ENEMY_X_6       DS.L    01  ; Reserve Space for Enemy X Position
+00001D8A                          1441  ENEMY_Y_6       DS.L    01  ; Reserve Space for Enemy Y Position
+00001D8E                          1442  
+00001D8E                          1443  ENEMY_X_7       DS.L    01  ; Reserve Space for Enemy X Position
+00001D92                          1444  ENEMY_Y_7       DS.L    01  ; Reserve Space for Enemy Y Position
+00001D96                          1445  
+00001D96                          1446  ENEMY_X_8       DS.L    01  ; Reserve Space for Enemy X Position
+00001D9A                          1447  ENEMY_Y_8       DS.L    01  ; Reserve Space for Enemy Y Position
+00001D9E                          1448  
+00001D9E                          1449  ENEMY_X_9       DS.L    01  ; Reserve Space for Enemy X Position
+00001DA2                          1450  ENEMY_Y_9       DS.L    01  ; Reserve Space for Enemy Y Position
+00001DA6                          1451  *-----------------------------------------------------------
+00001DA6                          1452  * Section       : Sounds
+00001DA6                          1453  * Description   : Sound files, which are then loaded and given
+00001DA6                          1454  * an address in memory, they take a longtime to process and play
+00001DA6                          1455  * so keep the files small. Used https://voicemaker.in/ to 
+00001DA6                          1456  * generate and Audacity to convert MP3 to WAV
+00001DA6                          1457  *-----------------------------------------------------------
+00001DA6= 6A 75 6D 70 2E 77 ...   1458  JUMP_WAV        DC.B    'jump.wav',0        ; Jump Sound
+00001DAF= 72 75 6E 2E 77 61 ...   1459  RUN_WAV         DC.B    'run.wav',0         ; Run Sound
+00001DB7= 6F 70 70 73 2E 77 ...   1460  OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
+00001DC0                          1461  
+00001DC0                          1462      END    START        ; last line of source
+
+No errors detected
+No warnings generated
+
+
+SYMBOL TABLE INFORMATION
+Symbol-name         Value
+-------------------------
+CHECK_COLLISIONS_1  184C
+CHECK_COLLISIONS_2  18C2
+CHECK_COLLISIONS_3  1938
+CHECK_COLLISIONS_4  19AE
+CHECK_COLLISIONS_5  1A24
+CHECK_COLLISIONS_6  1A9A
+CHECK_COLLISIONS_7  1B10
+CHECK_COLLISIONS_8  1B86
+CHECK_COLLISIONS_9  1BFC
+COLLISION           1C72
+COLLISION_CHECK_DONE_1  18B2
+COLLISION_CHECK_DONE_2  1928
+COLLISION_CHECK_DONE_3  199E
+COLLISION_CHECK_DONE_4  1A14
+COLLISION_CHECK_DONE_5  1A8A
+COLLISION_CHECK_DONE_6  1B00
+COLLISION_CHECK_DONE_7  1B76
+COLLISION_CHECK_DONE_8  1BEC
+COLLISION_CHECK_DONE_9  1C62
+CURRENT_KEY         1D3E
+DOWN                1356
+DOWNARROW           28
+DOWN_MSG            1D14
+DRAW                1450
+DRAW_ENEMY_1        1654
+DRAW_ENEMY_2        168C
+DRAW_ENEMY_3        16C4
+DRAW_ENEMY_4        16FC
+DRAW_ENEMY_5        1734
+DRAW_ENEMY_6        176C
+DRAW_ENEMY_7        17A4
+DRAW_ENEMY_8        17DC
+DRAW_ENEMY_9        1814
+DRAW_PLAYER         161C
+DRAW_PLYR_DATA      148E
+ENEMY_X_1           1D5E
+ENEMY_X_2           1D66
+ENEMY_X_3           1D6E
+ENEMY_X_4           1D76
+ENEMY_X_5           1D7E
+ENEMY_X_6           1D86
+ENEMY_X_7           1D8E
+ENEMY_X_8           1D96
+ENEMY_X_9           1D9E
+ENEMY_Y_1           1D62
+ENEMY_Y_2           1D6A
+ENEMY_Y_3           1D72
+ENEMY_Y_4           1D7A
+ENEMY_Y_5           1D82
+ENEMY_Y_6           1D8A
+ENEMY_Y_7           1D92
+ENEMY_Y_8           1D9A
+ENEMY_Y_9           1DA2
+ENMY_H_INIT         14
+ENMY_W_INIT         14
+ESCAPE              1B
+EXIT                1CD0
+EXIT_MSG            1D2D
+GAME                1192
+GAMELOOP            1196
+GND_FALSE           0
+GND_TRUE            1
+HEALTH              2000
+HEALTH_MSG          1D23
+HEALTH_VALUE        1D4E
+INITIALISE          1000
+INPUT               11FC
+IS_PLAYER_ON_GND    156E
+JMP_INDEX           1
+JUMP_LOAD           15E0
+JUMP_MSG            1D04
+JUMP_WAV            1DA6
+KEYCODE_MSG         1CF9
+MOVE_ENEMY_1        1378
+MOVE_ENEMY_2        13A0
+MOVE_ENEMY_3        1380
+MOVE_ENEMY_4        13A8
+MOVE_ENEMY_5        1388
+MOVE_ENEMY_6        13B0
+MOVE_ENEMY_7        1390
+MOVE_ENEMY_8        13B8
+MOVE_ENEMY_9        1398
+OPPS_INDEX          2
+OPPS_LOAD           15FE
+OPPS_WAV            1DB7
+OUT_OF_BOUNDS_DOWN  136C
+OUT_OF_BOUNDS_UP    134C
+PLAYER_SCORE        1D4A
+PLAYER_X            1D42
+PLAYER_X_LTE_TO_ENEMY_X_1_PLUS_W  1850
+PLAYER_X_LTE_TO_ENEMY_X_2_PLUS_W  18C6
+PLAYER_X_LTE_TO_ENEMY_X_3_PLUS_W  193C
+PLAYER_X_LTE_TO_ENEMY_X_4_PLUS_W  19B2
+PLAYER_X_LTE_TO_ENEMY_X_5_PLUS_W  1A28
+PLAYER_X_LTE_TO_ENEMY_X_6_PLUS_W  1A9E
+PLAYER_X_LTE_TO_ENEMY_X_7_PLUS_W  1B14
+PLAYER_X_LTE_TO_ENEMY_X_8_PLUS_W  1B8A
+PLAYER_X_LTE_TO_ENEMY_X_9_PLUS_W  1C00
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_1  186A
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_2  18E0
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_3  1956
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_4  19CC
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_5  1A42
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_6  1AB8
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_7  1B2E
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_8  1BA4
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X_9  1C1A
+PLAYER_Y            1D46
+PLAYER_Y_LTE_TO_ENEMY_Y_1_PLUS_H  187E
+PLAYER_Y_LTE_TO_ENEMY_Y_2_PLUS_H  18F4
+PLAYER_Y_LTE_TO_ENEMY_Y_3_PLUS_H  196A
+PLAYER_Y_LTE_TO_ENEMY_Y_4_PLUS_H  19E0
+PLAYER_Y_LTE_TO_ENEMY_Y_5_PLUS_H  1A56
+PLAYER_Y_LTE_TO_ENEMY_Y_6_PLUS_H  1ACC
+PLAYER_Y_LTE_TO_ENEMY_Y_7_PLUS_H  1B42
+PLAYER_Y_LTE_TO_ENEMY_Y_8_PLUS_H  1BB8
+PLAYER_Y_LTE_TO_ENEMY_Y_9_PLUS_H  1C2E
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_1  1898
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_2  190E
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_3  1984
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_4  19FA
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_5  1A70
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_6  1AE6
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_7  1B5C
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_8  1BD2
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_9  1C48
+PLAY_JUMP           15F2
+PLAY_OPPS           1610
+PLAY_RUN            15D4
+PLYR_DFLT_G         1
+PLYR_DFLT_V         0
+PLYR_GRAVITY        1D56
+PLYR_H_INIT         14
+PLYR_JUMP_V         FFFFFFEC
+PLYR_ON_GND         1D5A
+PLYR_VELOCITY       1D52
+PLYR_W_INIT         14
+POINTS              1
+PROCESS_INPUT       121A
+RED                 FF
+RESET_ENEMY_POSITION_1  13C0
+RESET_ENEMY_POSITION_2  13D0
+RESET_ENEMY_POSITION_3  13E0
+RESET_ENEMY_POSITION_4  13F0
+RESET_ENEMY_POSITION_5  1400
+RESET_ENEMY_POSITION_6  1410
+RESET_ENEMY_POSITION_7  1420
+RESET_ENEMY_POSITION_8  1430
+RESET_ENEMY_POSITION_9  1440
+RUN_INDEX           0
+RUN_LOAD            15C2
+RUN_WAV             1DAF
+SCORE_MSG           1CF0
+SCREEN_H            1D3C
+SCREEN_W            1D3A
+SET_OFF_GROUND      15B6
+SET_ON_GROUND       158E
+SPACEBAR            20
+START               1000
+TC_CURSR_P          B
+TC_DBL_BUF          5C
+TC_EXIT             9
+TC_KEYCODE          13
+TC_SCREEN           21
+TC_S_SIZE           0
+UP                  1336
+UPARROW             26
+UPDATE_1            124C
+UPDATE_2            1266
+UPDATE_3            1280
+UPDATE_4            129A
+UPDATE_5            12B4
+UPDATE_6            12CE
+UPDATE_7            12E8
+UPDATE_8            1302
+UPDATE_9            131C
+UP_MSG              1D0D
+WAIT                11EE
+WHITE               FFFFFF
+X_MSG               1D1D
+Y_MSG               1D20
+_00000000           1CCE
