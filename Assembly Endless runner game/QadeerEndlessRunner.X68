@@ -19,7 +19,6 @@ TC_DBL_BUF  EQU         92          ; Double Buffer Screen Trap Code
 TC_CURSR_P  EQU         11          ; Trap code cursor position
     
 TC_EXIT     EQU         09          ; Exit Trapcode
-
 *-----------------------------------------------------------
 * Section       : Charater Setup
 * Description   : Size of Player and Enemy and properties
@@ -40,7 +39,6 @@ BOTTOM_Y_LINE  EQU      342         ; Bottom Y line start point
 * Description   : Points, Health
 *-----------------------------------------------------------
 POINTS      EQU         01          ; Points added
-ENEMY_MOVEMENT  EQU  00
 *-----------------------------------------------------------
 * Section       : Keyboard Keys
 * Description   : Spacebar and Escape or two functioning keys
@@ -154,6 +152,15 @@ INITIALISE:
     MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
     MOVE.W  #320,       D1          ; Set 320 as the spawn and move it to D1
     MOVE.L  D1,         ENEMY_Y_7   ; Move D1 to Enemy Y 7
+    
+    ;Initialise the enemy speeds
+    MOVE.L  #05,        ENEMY_SPEED_1
+    MOVE.L  #03,        ENEMY_SPEED_2
+    MOVE.L  #05,        ENEMY_SPEED_3
+    MOVE.L  #03,        ENEMY_SPEED_4
+    MOVE.L  #05,        ENEMY_SPEED_5
+    MOVE.L  #03,        ENEMY_SPEED_6
+    MOVE.L  #05,        ENEMY_SPEED_7
         
     ; Enable the screen back buffer(see easy 68k help)
 	MOVE.B  #TC_DBL_BUF,D0          ; 92 Enables Double Buffer
@@ -349,42 +356,56 @@ OUT_OF_BOUNDS_DOWN:
 * Description   : Move Enemy Right to Left
 *-----------------------------------------------------------
 MOVE_ENEMY_1:
-    SUB.L   #05,    ENEMY_X_1   ; Move enemy by X Value
+    CLR.L   D1
+    MOVE.L  ENEMY_SPEED_1,D1   ; Move Enemy speed to D1
+    SUB.L   D1,    ENEMY_X_1   ; Sub D1 from Enemy_X
     RTS
      
 MOVE_ENEMY_3:
-    SUB.L   #05,    ENEMY_X_3   ; Move enemy by X Value
+    CLR.L   D1
+    MOVE.L  ENEMY_SPEED_3,D1   ; Move Enemy speed to D1
+    SUB.L   D1,    ENEMY_X_3   ; Sub D1 from Enemy_X
     RTS
 
 MOVE_ENEMY_5:
-    SUB.L    #05,   ENEMY_X_5   ; Move enemy by X Value
+    CLR.L   D1
+    MOVE.L  ENEMY_SPEED_5,D1  ; Move Enemy speed to D1
+    SUB.L   D1,   ENEMY_X_5   ; Sub D1 from Enemy_X
     RTS
     
 MOVE_ENEMY_7:
-    SUB.L    #05,   ENEMY_X_7   ; Move enemy by X Value
+    CLR.L   D1
+    MOVE.L  ENEMY_SPEED_7,D1  ; Move Enemy speed to D1
+    SUB.L   D1,   ENEMY_X_7   ; Sub D1 from Enemy_X
     RTS
      
 MOVE_ENEMY_2:
-     SUB.L   #03,   ENEMY_X_2   ; Move enemy by X Value
-     RTS
+    CLR.L   D1
+    MOVE.L  ENEMY_SPEED_2,D1  ; Move Enemy speed to D1
+    SUB.L   D1,   ENEMY_X_2   ; Sub D1 from Enemy_X
+    RTS
      
 MOVE_ENEMY_4:
-     SUB.L   #03,   ENEMY_X_4   ; Move enemy by X Value
-     RTS
+    CLR.L   D1
+    MOVE.L  ENEMY_SPEED_4,D1  ; Move Enemy speed to D1
+    SUB.L   D1,   ENEMY_X_4   ; Sub D1 from Enemy_X
+    RTS
     
 MOVE_ENEMY_6:
-     SUB.L   #03,   ENEMY_X_6   ; Move enemy by X Value
-     RTS  
+    CLR.L   D1
+    MOVE.L  ENEMY_SPEED_6,D1  ; Move Enemy speed to D1
+    SUB.L   D1,   ENEMY_X_6   ; Sub D1 from Enemy_X
+    RTS  
 *-----------------------------------------------------------
 * Subroutine    : Reset Enemy
 * Description   : Reset Enemy if to passes 0 to Right of Screen
 *----------------------------------------------------------- 
 RESET_ENEMY_POSITION_1:             ; Reset enemy 1
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    CLR.L  D1                       ; Clear contents of D1 (XOR is faster)
     MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
     MOVE.L  D1,         ENEMY_X_1   ; Enemy X Position
     RTS
-
+ 
 RESET_ENEMY_POSITION_2:             ; Reset enemy 1
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
@@ -1005,12 +1026,11 @@ PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y_7:     ; Less than or Equal ?
     BRA     COLLISION_CHECK_DONE    ; If not no collision
 *---------------------------------------------------------------------------------
 COLLISION_CHECK_DONE:               ; No Collision Update points
-    ADD.L   #POINTS,    D1          ; Move points upgrade to D1
-    ADD.L   PLAYER_SCORE,D1         ; Add to current player score
-    MOVE.L  D1,PLAYER_SCORE        ; Update player score in memory
+    MOVE.L  PLAYER_SCORE,D1         ; Move Player_score yo D1
+    ADD.L   #POINTS,    D1          ; Add points upgrade to D1
+    MOVE.L  D1,PLAYER_SCORE         ; Update player score in memory
     RTS                             ; Return to subroutine
 
-    
 COLLISION:
     BSR     PLAY_OPPS               ; Play Opps Wav
     SUB.L   #20, HEALTH_VALUE       ; Sub 20 from Health everytime there is a collison
@@ -1083,13 +1103,11 @@ LIME            EQU     $0000FF00
 *-----------------------------------------------------------
 SCREEN_W        DS.W    01  ; Reserve Space for Screen Width
 SCREEN_H        DS.W    01  ; Reserve Space for Screen Height
-
 *-----------------------------------------------------------
 * Section       : Keyboard Input
 * Description   : Used for storing Keypresses
 *-----------------------------------------------------------
 CURRENT_KEY     DS.L    01  ; Reserve Space for Current Key Pressed
-
 *-----------------------------------------------------------
 * Section       : Character Positions
 * Description   : Player and Enemy Position Memory Locations
@@ -1120,6 +1138,13 @@ ENEMY_Y_6       DS.L    01  ; Reserve Space for Enemy Y Position
 ENEMY_X_7       DS.L    01  ; Reserve Space for Enemy X Position
 ENEMY_Y_7       DS.L    01  ; Reserve Space for Enemy Y Position
 
+ENEMY_SPEED_1   DS.L    01  ; Reserve space for Enemy Speed
+ENEMY_SPEED_2   DS.L    01
+ENEMY_SPEED_3   DS.L    01
+ENEMY_SPEED_4   DS.L    01
+ENEMY_SPEED_5   DS.L    01
+ENEMY_SPEED_6   DS.L    01
+ENEMY_SPEED_7   DS.L    01
 *-----------------------------------------------------------
 * Section       : Sounds
 * Description   : Sound files, which are then loaded and given
@@ -1136,6 +1161,10 @@ OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
 
   
+
+
+
+
 
 
 
